@@ -685,7 +685,8 @@ var META_KEY="ssis-to-fabric-path-meta";
 var meta={};
 try{meta=JSON.parse(window.localStorage.getItem(META_KEY)||"{}")||{};}catch(e){meta={};}
 function persistMeta(){try{window.localStorage.setItem(META_KEY,JSON.stringify(meta));}catch(e){}}
-function noteChange(){meta.lastChangeAt=Date.now();persistMeta();updateSyncUI();scheduleSync();}
+function touchMeta(){meta.lastChangeAt=Date.now();persistMeta();updateSyncUI();}
+function progressChanged(){touchMeta();scheduleSync();}
 
 /* ================================================================== */
 /* Rendering                                                           */
@@ -1041,7 +1042,7 @@ function bindIO(){
       if(!KNOWN_IDS[id]){skipped++;return;}
       if(parsed[id]){setItem(id,1);added++;}
     });
-    persistItems();syncChecks();refresh(true);noteChange();
+    persistItems();syncChecks();refresh(true);progressChanged();
     closeIO();
     toast("Imported "+added+" item"+(added===1?"":"s")+(skipped?", skipped "+skipped+" unrecognised":"")+".");
   }
@@ -1176,15 +1177,202 @@ function pullAndMerge(){
     setSyncState("error");
   });
 }
+function pullAll(){pullAndMerge();pullNotes();}
+
+/* ================================================================== */
+/* Notes: local-first store + per-scope sync (storage layer; the       */
+/* drawer/editor UI reads and writes through the functions below)      */
+/* ================================================================== */
+var NOTES_KEY="ssis-to-fabric-notes-v1";
+var NOTE_DEBOUNCE_MS=800;
+var NOTE_BACKOFF_MAX_MS=60000;
+var notesDoc={v:1,notes:{}};
+(function loadNotes(){
+  try{
+    var raw=window.localStorage.getItem(NOTES_KEY);
+    if(raw){var parsed=JSON.parse(raw);if(parsed&&parsed.notes&&typeof parsed.notes==="object"){notesDoc=parsed;}}
+  }catch(e){}
+})();
+function persistNotes(){try{window.localStorage.setItem(NOTES_KEY,JSON.stringify(notesDoc));}catch(e){}}
+
+var KNOWN_LESSON_IDS={};
+PHASES.forEach(function(p){p.tasks.forEach(function(t){if(t.subs){t.subs.forEach(function(s){KNOWN_LESSON_IDS[s.id]=1;});}});});
+var PHASE_SCOPE_RE=/^p[0-5]$/;
+var LESSON_SCOPE_RE=/^lesson:([a-z0-9-]+)$/;
+function isValidScope(scope){
+  if(scope==="scratch"||PHASE_SCOPE_RE.test(scope)){return true;}
+  var m=LESSON_SCOPE_RE.exec(scope);
+  return !!(m&&KNOWN_LESSON_IDS[m[1]]);
+}
+
+var noteSyncTimers={},noteSyncInFlight={},noteSyncBackoff={},noteSyncState={};
+var noteConflicts={};
+var notesListeners=[];
+function onNotesChanged(fn){notesListeners.push(fn);}
+function fireNotesChanged(){notesListeners.forEach(function(fn){try{fn();}catch(e){}});}
+
+function noteRecord(scope){return notesDoc.notes[scope];}
+function setNoteSyncState(scope,s){noteSyncState[scope]=s;updateSyncUI();}
+
+function setNoteBody(scope,body){
+  if(!isValidScope(scope)){return;}
+  var rec=notesDoc.notes[scope];
+  if(!body&&!rec){return;}
+  if(!rec){rec=notesDoc.notes[scope]={body:"",localUpdatedAt:0,serverUpdatedAt:0,dirty:false};}
+  rec.body=body;
+  rec.localUpdatedAt=Date.now();
+  rec.dirty=true;
+  delete noteConflicts[scope];
+  persistNotes();
+  touchMeta();
+  fireNotesChanged();
+  scheduleNoteSync(scope);
+}
+function deleteNoteLocal(scope){
+  delete notesDoc.notes[scope];
+  delete noteConflicts[scope];
+  persistNotes();
+  fireNotesChanged();
+}
+
+function anyNoteSyncInFlight(){return Object.keys(noteSyncInFlight).length>0;}
+function anyNoteUnsynced(){
+  return Object.keys(notesDoc.notes).some(function(scope){
+    var r=notesDoc.notes[scope];
+    return r.dirty||noteSyncState[scope]==="error"||noteSyncState[scope]==="offline";
+  })||Object.keys(noteConflicts).length>0;
+}
+function combinedSyncState(){
+  var states=[syncState];
+  Object.keys(noteSyncState).forEach(function(k){states.push(noteSyncState[k]);});
+  if(states.indexOf("error")>-1||Object.keys(noteConflicts).length){return "error";}
+  if(states.indexOf("saving")>-1){return "saving";}
+  if(states.indexOf("offline")>-1){return "offline";}
+  return "saved";
+}
+
+function runNoteSync(scope){
+  var client=window.APP_AUTH_CLIENT;
+  if(!client){return Promise.resolve();}
+  if(noteSyncInFlight[scope]){return noteSyncInFlight[scope];}
+  var rec=notesDoc.notes[scope];
+  if(!rec){return Promise.resolve();}
+  if(navigator.onLine===false){setNoteSyncState(scope,"offline");return Promise.resolve();}
+  setNoteSyncState(scope,"saving");
+  var startAt=rec.localUpdatedAt;
+  var body=rec.body;
+  var isDelete=!body||!body.trim();
+  var iso=new Date().toISOString();
+  var p=client.auth.getSession().then(function(res){
+    var session=res&&res.data&&res.data.session,uid=session&&session.user&&session.user.id;
+    if(!uid){throw new Error("not signed in");}
+    if(isDelete){return client.from("notes").delete().eq("user_id",uid).eq("scope",scope);}
+    return client.from("notes").upsert({user_id:uid,scope:scope,body:body,updated_at:iso},{onConflict:"user_id,scope"});
+  }).then(function(res){
+    if(res&&res.error){throw res.error;}
+    delete noteSyncInFlight[scope];
+    noteSyncBackoff[scope]=2000;
+    var current=notesDoc.notes[scope];
+    if(current&&current.localUpdatedAt===startAt){
+      if(isDelete){delete notesDoc.notes[scope];}
+      else{current.serverUpdatedAt=Date.parse(iso);current.dirty=false;}
+      persistNotes();
+      setNoteSyncState(scope,"saved");
+    }else if(current){
+      setNoteSyncState(scope,"saved");
+      scheduleNoteSync(scope);
+    }
+    meta.lastSavedAt=Date.now();persistMeta();updateSyncUI();
+    fireNotesChanged();
+  }).catch(function(){
+    delete noteSyncInFlight[scope];
+    setNoteSyncState(scope,"error");
+    scheduleNoteRetry(scope);
+  });
+  noteSyncInFlight[scope]=p;
+  return p;
+}
+function scheduleNoteSync(scope){
+  if(!window.APP_AUTH_CLIENT){return;}
+  clearTimeout(noteSyncTimers[scope]);
+  setNoteSyncState(scope,"saving");
+  noteSyncTimers[scope]=setTimeout(function(){runNoteSync(scope);},NOTE_DEBOUNCE_MS);
+}
+function scheduleNoteRetry(scope){
+  clearTimeout(noteSyncTimers[scope]);
+  var ms=noteSyncBackoff[scope]||2000;
+  noteSyncTimers[scope]=setTimeout(function(){runNoteSync(scope);},ms);
+  noteSyncBackoff[scope]=Math.min(ms*2,NOTE_BACKOFF_MAX_MS);
+}
+
+function pullNotes(){
+  var client=window.APP_AUTH_CLIENT;
+  if(!client){return Promise.resolve();}
+  return client.auth.getSession().then(function(res){
+    var session=res&&res.data&&res.data.session,uid=session&&session.user&&session.user.id;
+    if(!uid){return;}
+    return client.from("notes").select("scope,body,updated_at").eq("user_id",uid).then(function(res2){
+      if(res2&&res2.error){throw res2.error;}
+      (res2&&res2.data||[]).forEach(function(row){
+        if(!isValidScope(row.scope)){return;}
+        var remoteTs=Date.parse(row.updated_at);
+        var rec=notesDoc.notes[row.scope];
+        if(!rec){
+          notesDoc.notes[row.scope]={body:row.body,localUpdatedAt:remoteTs,serverUpdatedAt:remoteTs,dirty:false};
+          return;
+        }
+        if(remoteTs>rec.serverUpdatedAt){
+          if(rec.dirty){
+            noteConflicts[row.scope]={local:{body:rec.body,at:rec.localUpdatedAt},remote:{body:row.body,at:remoteTs}};
+          }else{
+            rec.body=row.body;rec.localUpdatedAt=remoteTs;rec.serverUpdatedAt=remoteTs;rec.dirty=false;
+          }
+        }
+      });
+      persistNotes();
+      Object.keys(notesDoc.notes).forEach(function(scope){
+        if(notesDoc.notes[scope].dirty&&!noteConflicts[scope]){scheduleNoteSync(scope);}
+      });
+      updateSyncUI();
+      fireNotesChanged();
+    });
+  }).catch(function(){});
+}
+
+function resolveConflictKeepMine(scope){
+  var c=noteConflicts[scope];if(!c){return;}
+  delete noteConflicts[scope];
+  var rec=notesDoc.notes[scope];
+  if(!rec){return;}
+  rec.localUpdatedAt=Date.now();rec.dirty=true;
+  persistNotes();fireNotesChanged();
+  scheduleNoteSync(scope);
+}
+function resolveConflictUseTheirs(scope){
+  var c=noteConflicts[scope];if(!c){return;}
+  delete noteConflicts[scope];
+  notesDoc.notes[scope]={body:c.remote.body,localUpdatedAt:c.remote.at,serverUpdatedAt:c.remote.at,dirty:false};
+  persistNotes();fireNotesChanged();updateSyncUI();
+}
+function resolveConflictCopyMine(scope){
+  var c=noteConflicts[scope];if(!c){return;}
+  try{
+    if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(c.local.body);}
+  }catch(e){}
+  resolveConflictUseTheirs(scope);
+}
 
 function guardSignOut(onProceed){
   function decide(){
-    if(!syncDirty&&syncState!=="error"&&syncState!=="offline"){onProceed();return;}
+    if(!syncDirty&&syncState!=="error"&&syncState!=="offline"&&!anyNoteUnsynced()){onProceed();return;}
     openSyncWarn(onProceed);
   }
-  if(syncInFlight){
+  var pending=[];
+  if(syncInFlight){pending.push(syncInFlight.catch(function(){}));}
+  Object.keys(noteSyncInFlight).forEach(function(scope){pending.push(noteSyncInFlight[scope].catch(function(){}));});
+  if(pending.length){
     toast("Finishing save before sign out…");
-    Promise.race([syncInFlight.catch(function(){}),new Promise(function(res){setTimeout(res,8000);})]).then(decide);
+    Promise.race([Promise.all(pending),new Promise(function(res){setTimeout(res,8000);})]).then(decide);
   }else{
     decide();
   }
@@ -1212,9 +1400,10 @@ function syncStatus(){
     if(meta.lastChangeAt){text+=" · "+fmtIST(meta.lastChangeAt);}
     return {dot:"local",text:text};
   }
-  if(syncState==="saving"){return {dot:"saving",text:"Saving…"};}
-  if(syncState==="offline"){return {dot:"offline",text:"Offline · saved on this device"};}
-  if(syncState==="error"){return {dot:"error",text:"Could not save to the cloud · retrying"};}
+  var combined=combinedSyncState();
+  if(combined==="saving"){return {dot:"saving",text:"Saving…"};}
+  if(combined==="offline"){return {dot:"offline",text:"Offline · saved on this device"};}
+  if(combined==="error"){return {dot:"error",text:"Could not save to the cloud · retrying"};}
   if(meta.lastSavedAt){return {dot:"saved",text:"Saved "+fmtIST(meta.lastSavedAt)};}
   var fallback="Saved on this device";
   if(meta.lastChangeAt){fallback+=" · "+fmtIST(meta.lastChangeAt);}
@@ -1373,9 +1562,13 @@ function bindInsights(){
         window.localStorage.removeItem(KEY_V2);
         window.localStorage.removeItem(KEY_V3);
         window.localStorage.removeItem(META_KEY);
+        window.localStorage.removeItem(NOTES_KEY);
       }catch(e){}
       items={};meta={};rebuildDone();persistItems();persistMeta();syncChecks();prevPhase={};prevTask={};refresh(true);
       syncDirty=false;clearTimeout(syncTimer);setSyncState("idle");
+      notesDoc={v:1,notes:{}};noteConflicts={};noteSyncState={};
+      Object.keys(noteSyncTimers).forEach(function(s){clearTimeout(noteSyncTimers[s]);});
+      noteSyncTimers={};fireNotesChanged();
       if(window.APP_AUTH_SIGNOUT){window.APP_AUTH_SIGNOUT();}else{$("#signOut").click();}
     });
   });
@@ -1390,7 +1583,7 @@ function bindInsights(){
         var email=(session.user&&session.user.email)||"";
         accountInitial.textContent=email?email.charAt(0).toUpperCase():"?";
         accountEmail.textContent=email;
-        if(!hasPulledThisSession){hasPulledThisSession=true;pullAndMerge();}
+        if(!hasPulledThisSession){hasPulledThisSession=true;pullAll();}
       }else{
         closeAccountMenu();
         hasPulledThisSession=false;
@@ -1399,8 +1592,8 @@ function bindInsights(){
     };
     authClient.auth.getSession().then(function(res){applySession(res&&res.data&&res.data.session);}).catch(function(){accountWrap.hidden=true;});
     authClient.auth.onAuthStateChange(function(event,session){applySession(session);});
-    document.addEventListener("visibilitychange",function(){if(!document.hidden){pullAndMerge();}});
-    window.addEventListener("online",function(){pullAndMerge();});
+    document.addEventListener("visibilitychange",function(){if(!document.hidden){pullAll();}});
+    window.addEventListener("online",function(){pullAll();});
     window.addEventListener("offline",function(){setSyncState("offline");});
   }
 }
@@ -1411,7 +1604,7 @@ function bind(){
     var id=t.getAttribute("data-task")||t.getAttribute("data-lesson"); if(!id) return;
     setItem(id,t.checked);
     if(t.checked){burst(t.nextElementSibling,t.closest(".phase")?t.closest(".phase").getAttribute("data-layer"):"gold",22);}
-    persistItems();refresh(false);noteChange();
+    persistItems();refresh(false);progressChanged();
   });
   document.addEventListener("click",function(e){
     var tg=e.target; if(!tg.closest) return;
@@ -1434,7 +1627,7 @@ function bind(){
     }
     clearTimeout(rt);rb.removeAttribute("data-arm");rb.textContent="Reset progress";
     Object.keys(items).forEach(function(id){if(items[id][0]){setItem(id,0);}});
-    persistItems();syncChecks();prevPhase={};prevTask={};refresh(true);noteChange();toast("Progress cleared.");
+    persistItems();syncChecks();prevPhase={};prevTask={};refresh(true);progressChanged();toast("Progress cleared.");
   });
   bindIO();
   bindInsights();
