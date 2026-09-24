@@ -435,6 +435,33 @@ footer p{max-width:70ch}
 .io-text{width:100%;min-height:180px;resize:vertical;background:#03051a;color:var(--text);border:1px solid var(--line-2);border-radius:8px;padding:10px 12px;font:400 .84rem/1.5 var(--mono);tab-size:2}
 .io-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end;margin-top:14px}
 
+/* ---------- Login gate ---------- */
+html:not(.gate-open) header.nav,html:not(.gate-open) main,html:not(.gate-open) footer{display:none}
+.gate{position:fixed;inset:0;z-index:500;display:grid;place-items:center;padding:20px;background:rgba(2,3,10,.92);
+  transition:opacity 1s var(--ease);opacity:1}
+.gate[hidden]{display:none}
+.gate-box{width:min(380px,100%);background:var(--panel-solid);border:1px solid var(--line-2);border-radius:14px;padding:28px 26px;box-shadow:0 30px 80px -30px rgba(0,0,0,.7)}
+.gate-splash{text-align:center;color:var(--soft)}
+.gate-splash[hidden]{display:none}
+.gate-spinner{width:34px;height:34px;margin:0 auto 14px;border-radius:50%;border:3px solid rgba(255,255,255,.15);border-top-color:var(--gold);animation:gatespin 1s linear infinite}
+@keyframes gatespin{to{transform:rotate(360deg)}}
+.login-card h2{font-size:1.3rem;margin-bottom:8px}
+.login-card[hidden]{display:none}
+.login-hint{color:var(--muted);font-size:.9rem;margin-bottom:18px}
+.field{display:block;margin-bottom:14px;font-size:.9rem;color:var(--soft)}
+.field span{display:block;margin-bottom:6px}
+.field input{width:100%;padding:10px 12px;border-radius:8px;border:1px solid var(--line-2);background:#03051a;color:var(--text);font:inherit}
+.field input:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.pw-wrap{position:relative;display:block}
+.pw-wrap input{padding-right:66px}
+.pw-toggle{position:absolute;right:5px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.04);border:1px solid var(--line-2);border-radius:6px;padding:4px 10px;font-size:.78rem;color:var(--soft);cursor:pointer}
+.pw-toggle:hover{border-color:var(--gold);color:var(--gold)}
+.login-error{color:#ff9c9c;font-size:.88rem;min-height:1.3em;margin:2px 0 14px}
+.login-card .btn{width:100%}
+.local-banner{margin:0;padding:8px 16px;text-align:center;font-size:.86rem;color:var(--gold);background:rgba(255,203,77,.1);border-bottom:1px solid rgba(255,203,77,.32)}
+.local-banner[hidden]{display:none}
+@media (max-width:420px){.gate-box{padding:22px 18px}}
+
 /* ---------- Wide-screen gutters: flight ruler (left), orbit system (right) ---------- */
 #rail,#orbit{display:none}
 @media (min-width:1560px){
@@ -478,6 +505,32 @@ footer p{max-width:70ch}
 <a class="skip" href="#path">Skip to the phases</a>
 <div id="scrollbar" aria-hidden="true"></div>
 
+<div class="gate" id="gate">
+  <div class="gate-box">
+    <div class="gate-splash" id="gateSplash">
+      <div class="gate-spinner" aria-hidden="true"></div>
+      <p>Checking your session&hellip;</p>
+    </div>
+    <form class="login-card" id="loginForm" hidden novalidate>
+      <h2>Sign in</h2>
+      <p class="login-hint">This page is private. Sign in to see your progress and notes.</p>
+      <label class="field">
+        <span>Email</span>
+        <input type="email" id="loginEmail" name="email" autocomplete="username" required>
+      </label>
+      <label class="field">
+        <span>Password</span>
+        <span class="pw-wrap">
+          <input type="password" id="loginPassword" name="password" autocomplete="current-password" required>
+          <button type="button" class="pw-toggle" id="pwToggle" aria-label="Show password">Show</button>
+        </span>
+      </label>
+      <p class="login-error" id="loginError" role="alert" aria-live="assertive"></p>
+      <button type="submit" class="btn primary" id="loginSubmit">Sign in</button>
+    </form>
+  </div>
+</div>
+
 <div id="cosmos" aria-hidden="true">
   <div id="starfield"><div class="sl" data-sp=".018"><i></i></div><div class="sl" data-sp=".045"><i></i></div><div class="sl" data-sp=".1"><i></i></div></div>
   <div class="shoot" id="shoot"></div>
@@ -496,6 +549,8 @@ footer p{max-width:70ch}
   <div class="ring r3"><i class="sat gold"></i></div><div class="ring r2"><i class="sat silver"></i></div><div class="ring r1"><i class="sat bronze"></i></div>
   <div class="core"></div><p class="ol">Bronze, Silver, Gold</p>
 </div>
+
+<p class="local-banner" id="localBanner" hidden>Local-only mode: no login is configured, so this device is unprotected. Progress and notes stay in this browser only.</p>
 
 <header class="nav">
   <div class="wrap nav-in">
@@ -668,6 +723,7 @@ footer p{max-width:70ch}
       <button class="mini" id="exportProgress" type="button">Export progress</button>
       <button class="mini" id="importProgress" type="button">Import progress</button>
       <button class="mini" id="reset" type="button">Reset progress</button>
+      <button class="mini" id="signOut" type="button" hidden>Sign out</button>
     </div>
   </div>
 </footer>
@@ -686,6 +742,9 @@ footer p{max-width:70ch}
   </div>
 </div>
 
-<script src="js/app.js"></script>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.1/dist/umd/supabase.js" defer></script>
+<script src="js/auth.js" defer></script>
+<script src="js/app.js" defer></script>
 </body>
 </html>
