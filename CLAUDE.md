@@ -45,12 +45,14 @@ A dark, space-themed learning-path page:
 
 ## Pending work
 
-### A. Remove job-search content (do first)
-- [ ] Delete phase `P6` (Launch) and remove it from the `PHASES` array, `COSTS` ("Phase 6"), route chart, hero/facts counts and hours (about 106 hours becomes about 98).
-- [ ] `renderRoute`: remove the "Start applying" milestone flag. Decide whether the route is now 11 weeks (P5 ends in week 11) and update "12-week" copy in hero, nav, route section, facts and title.
-- [ ] Task `p5-g` detail mentions LinkedIn and resume: reword to just sitting the exam.
-- [ ] `#signal` section ("Why these skills") and its nav link and `SIGNALS` array are built from job listings. **Open question for the owner: drop it, or keep a shorter version framed as skill context.** Also fix wording in the footer and `#signal` intro that mentions job listings.
-- [ ] Stored progress keys for `p6-*` become orphans; harmless, but ignore them in totals.
+### A. Remove job-search content (do first) — done
+- [x] Delete phase `P6` (Launch) and remove it from the `PHASES` array, `COSTS` ("Phase 6"), route chart, hero/facts counts and hours (about 106 hours becomes about 98).
+- [x] `renderRoute`: remove the "Start applying" milestone flag. The route is now 11 weeks (P5 ends in week 11); updated "12-week" copy in hero, nav, route section, facts and title, plus the 12-column route grid CSS/JS.
+- [x] Task `p5-g` detail mentions LinkedIn and resume: reworded to just sitting the exam.
+- [x] `#signal` section ("Why these skills"), its nav link, the `SIGNALS` array and its scrollspy entry are removed (owner chose to drop it, not keep a shorter version). Fixed wording in the footer and the "This path adds" card that mentioned job listings. Also reworded the two "update your resume" strings left over in the all-phases-complete messages (`nextUp` panel and the final toast).
+- [x] Stored progress keys for `p6-*` are harmless orphans; `TOTAL`/`taskDone` are derived from `PHASES`, which no longer includes P6, so they're already ignored in totals with no code change needed.
+
+Verified: `node --check` on the extracted script passes; headless Chromium run shows no console errors, 6 phases, 98 total hours, 24 lessons, route ends at W11, no `#signal` in the DOM, progress survives reload, and no horizontal overflow at 390px.
 
 ### B. Standalone site with login, cloud progress and notes
 - [ ] Repo scaffold: `index.html`, `netlify.toml` (or `vercel.json`), `README.md`. Consider splitting CSS/JS into files if it helps maintenance; keep no-build simplicity.

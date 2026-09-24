@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="color-scheme" content="dark">
 <meta name="theme-color" content="#02030a">
-<title>From SSIS to Fabric: a 12-week data engineering path</title>
+<title>From SSIS to Fabric: an 11-week data engineering path</title>
 <script>document.documentElement.className+=" js";</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -166,7 +166,7 @@ p{margin:0}
 
 /* ---------- Sections ---------- */
 section.sec{padding-block:clamp(60px,9vw,108px)}
-#start,#signal,#fresh,#stretch,#guardrails{content-visibility:auto;contain-intrinsic-size:auto 760px}
+#start,#fresh,#stretch,#guardrails{content-visibility:auto;contain-intrinsic-size:auto 760px}
 .sec-head{max-width:720px;margin-bottom:clamp(28px,4vw,44px)}
 .sec-head h2{font-size:clamp(1.7rem,3.6vw,2.6rem);line-height:1.1;letter-spacing:-.01em;margin-bottom:12px;position:relative;padding-left:18px}
 .sec-head h2::before{content:"";position:absolute;left:0;top:.16em;bottom:.16em;width:4px;border-radius:2px;background:linear-gradient(180deg,var(--bronze),var(--silver),var(--gold))}
@@ -183,11 +183,11 @@ section.sec{padding-block:clamp(60px,9vw,108px)}
 .legend i{width:12px;height:12px;border-radius:50%;display:inline-block}
 .route-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:rgba(5,8,24,.78);padding:18px 18px 14px;-webkit-overflow-scrolling:touch}
 .route{position:relative;min-width:800px}
-.rhead,.rrow{display:grid;grid-template-columns:172px repeat(12,minmax(0,1fr));align-items:center}
+.rhead,.rrow{display:grid;grid-template-columns:172px repeat(11,minmax(0,1fr));align-items:center}
 .rhead{height:30px;color:var(--dim);font-family:var(--display);font-size:.82rem}
 .rhead span{text-align:center}
 .rrow{height:48px}
-.rgrid{position:absolute;left:172px;right:0;top:30px;bottom:0;display:grid;grid-template-columns:repeat(12,1fr);pointer-events:none}
+.rgrid{position:absolute;left:172px;right:0;top:30px;bottom:0;display:grid;grid-template-columns:repeat(11,1fr);pointer-events:none}
 .rgrid span{border-left:1px solid rgba(90,105,200,.22)}
 .rgrid span:last-child{border-right:1px solid rgba(90,105,200,.22)}
 .rlabel{display:flex;align-items:center;gap:10px;font-size:.92rem;color:var(--soft);padding-right:12px;position:relative;z-index:1}
@@ -234,15 +234,7 @@ tbody tr:hover{background:rgba(138,123,255,.07)}
 .fresh td:first-child{font-family:var(--display);font-weight:600;color:var(--text);white-space:nowrap}
 .fresh td:last-child{color:var(--aurora)}
 
-/* ---------- Signals ---------- */
-.signals{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:rgba(5,8,24,.72)}
-.sig{padding:24px 26px;border-top:1px solid var(--line);border-left:1px solid var(--line)}
-.sig:nth-child(-n+2){border-top:0}.sig:nth-child(odd){border-left:0}
-.sig h3{font-size:1.08rem;margin-bottom:8px;line-height:1.25}
-.sig p{color:var(--soft);font-size:.95rem;margin-bottom:10px}
-.sig small{color:var(--dim);font-size:.82rem}
 .caveat{margin-top:14px;color:var(--muted);font-size:.9rem;max-width:70ch}
-@media (max-width:820px){.signals{grid-template-columns:1fr}.sig{border-left:0!important;border-top:1px solid var(--line)!important}.sig:first-child{border-top:0!important}}
 
 /* ---------- Next up + toolbar ---------- */
 .nextup{display:flex;flex-wrap:wrap;gap:14px 20px;align-items:center;justify-content:space-between;border:1px solid var(--line-2);border-radius:14px;padding:16px 20px;margin-bottom:22px;
@@ -508,7 +500,6 @@ footer p{max-width:70ch}
     <nav class="nav-links" aria-label="Sections">
       <a href="#route">Route</a>
       <a href="#start">Starting point</a>
-      <a href="#signal">Market signal</a>
       <a href="#fresh">Freshness</a>
       <a href="#path">Phases</a>
       <a href="#stretch">Stretch</a>
@@ -527,10 +518,10 @@ footer p{max-width:70ch}
     <div class="wrap">
       <div class="hero-in">
         <h1 id="h1">From SSIS packages to a Fabric lakehouse</h1>
-        <p class="lead">A 12-week route for people who already build with SQL Server, SSIS, Azure Data Factory and Power BI, and want hands-on proof in Microsoft Fabric, Spark and Delta Lake.</p>
+        <p class="lead">An 11-week route for people who already build with SQL Server, SSIS, Azure Data Factory and Power BI, and want hands-on proof in Microsoft Fabric, Spark and Delta Lake.</p>
         <div class="cta-row">
           <a class="btn primary" href="#path" id="startBtn">Start with phase 0</a>
-          <a class="btn ghost" href="#route">See the 12-week route</a>
+          <a class="btn ghost" href="#route">See the 11-week route</a>
         </div>
         <div class="hero-progress">
           <span class="ring" id="heroRing" style="width:68px;height:68px"></span>
@@ -550,8 +541,8 @@ footer p{max-width:70ch}
 
   <div class="wrap">
     <div class="facts rv soft" role="list">
-      <div class="fact" role="listitem"><b>12 weeks</b><span>at about 9 hours a week</span></div>
-      <div class="fact" role="listitem"><b>~106 hours</b><span>hands-on, my estimate</span></div>
+      <div class="fact" role="listitem"><b>11 weeks</b><span>at about 9 hours a week</span></div>
+      <div class="fact" role="listitem"><b>~98 hours</b><span>hands-on, my estimate</span></div>
       <div class="fact" role="listitem"><b id="factLessons">7 phases</b><span id="factLessonsSub">bronze, silver, gold</span></div>
       <div class="fact" role="listitem"><b>4 projects</b><span>for your portfolio</span></div>
     </div>
@@ -559,14 +550,14 @@ footer p{max-width:70ch}
 
   <section class="sec" id="route" aria-labelledby="routeH">
     <div class="wrap">
-      <div class="sec-head rv"><h2 id="routeH">The 12-week route</h2>
+      <div class="sec-head rv"><h2 id="routeH">The 11-week route</h2>
         <p>Each phase lands on a shippable result. The colour follows the medallion layers: foundations are bronze, core engineering is silver, and production plus proof is gold. Select a bar to jump to that phase.</p></div>
       <div class="legend rv soft">
         <span><i style="background:var(--bronze)"></i>Bronze: foundations</span>
         <span><i style="background:var(--silver)"></i>Silver: core engineering</span>
         <span><i style="background:var(--gold)"></i>Gold: production and proof</span>
       </div>
-      <div class="route-scroll rv soft" tabindex="0" aria-label="Twelve week route chart, scrolls sideways on small screens"><div class="route" id="routeChart"></div></div>
+      <div class="route-scroll rv soft" tabindex="0" aria-label="Eleven week route chart, scrolls sideways on small screens"><div class="route" id="routeChart"></div></div>
       <p class="route-note">The Fabric trial runs 60 days. Starting it at week 2 covers phases 1 to 4 and ends around week 10.</p>
     </div>
   </section>
@@ -581,7 +572,7 @@ footer p{max-width:70ch}
           <div class="chips"><span class="tag have">SQL Server</span><span class="tag have">T-SQL</span><span class="tag have">SSIS</span><span class="tag have">SSRS</span><span class="tag have">Power BI</span><span class="tag have">DAX</span><span class="tag have">Azure Data Factory</span></div>
         </div>
         <div class="card spot rv soft" style="--d:.15s">
-          <h3>This path adds</h3><p>The gaps that keep showing up in current job listings.</p>
+          <h3>This path adds</h3><p>The gaps between SSIS-era tooling and a Fabric lakehouse.</p>
           <div class="chips"><span class="tag add">Microsoft Fabric</span><span class="tag add">Lakehouse and Warehouse</span><span class="tag add">Dataflow Gen2</span><span class="tag add">Python and PySpark</span><span class="tag add">Delta Lake</span><span class="tag add">Databricks</span><span class="tag add">Git and deployment pipelines</span><span class="tag add">DP-600</span><span class="tag add">DP-700</span></div>
         </div>
       </div>
@@ -592,15 +583,6 @@ footer p{max-width:70ch}
           <tbody id="rosetta"></tbody>
         </table>
       </div>
-    </div>
-  </section>
-
-  <section class="sec" id="signal" aria-labelledby="sigH">
-    <div class="wrap">
-      <div class="sec-head rv"><h2 id="sigH">Why these skills</h2>
-        <p>Four patterns from job listings and migration guidance I found in September 2026. They shaped what is in the path and what is left out.</p></div>
-      <div class="signals rv soft" id="signals"></div>
-      <p class="caveat">This is a sample of listings, not a market study. It shows what employers ask for, not how many candidates compete for each role.</p>
     </div>
   </section>
 
@@ -635,7 +617,7 @@ footer p{max-width:70ch}
   <section class="sec" id="stretch" aria-labelledby="stH">
     <div class="wrap">
       <div class="sec-head rv"><h2 id="stH">Stretch missions</h2>
-        <p>Outside the 12 weeks and not tracked in your progress. Take one when a specific role or client asks for it.</p></div>
+        <p>Outside the 11 weeks and not tracked in your progress. Take one when a specific role or client asks for it.</p></div>
       <div class="stretch" id="stretchList"></div>
     </div>
   </section>
@@ -670,7 +652,7 @@ footer p{max-width:70ch}
 
 <footer>
   <div class="wrap">
-    <p>Hour and week figures are my estimates, built from the Fabric five-builds file and the Azure roadmap you shared, plus job listings and documentation checked in September 2026. Fabric menus, exam outlines and prices change often, so confirm details on Microsoft Learn as you go. Progress is stored only in this browser.</p>
+    <p>Hour and week figures are my estimates, built from the Fabric five-builds file and the Azure roadmap you shared, plus documentation checked in September 2026. Fabric menus, exam outlines and prices change often, so confirm details on Microsoft Learn as you go. Progress is stored only in this browser.</p>
     <button class="mini" id="reset" type="button">Reset progress</button>
   </div>
 </footer>
@@ -779,31 +761,13 @@ var P5={
   {id:"p5-d",t:"Sit DP-600",d:"Book it as soon as your practice scores are steady."},
   {id:"p5-e",t:"Map the DP-700 outline to your builds",d:"Blueprint dated 21 July 2026: ingestion and transformation, orchestration, Spark, basic KQL, monitoring, security, and Apache Airflow workspace settings."},
   {id:"p5-f",t:"Practise DP-700 under time",d:"Take the practice assessment, then one timed run."},
-  {id:"p5-g",t:"Sit DP-700",d:"Then add both badges to LinkedIn and your resume."},
+  {id:"p5-g",t:"Sit DP-700",d:"Book it once your practice scores are steady. The last exam in this path."},
   {id:"p5-h",t:"Optional: a Databricks certification",d:"Only if you are targeting Databricks-heavy roles."}
  ],
  ship:"Exam results plus a coverage map that links each exam skill to a build in your repo.",
  note:"Exam outlines, prices and languages change. Confirm the current details on the study guide pages before you book.",
  bridge:[["Years of Power BI","PL-300 and DP-600"],["Pipelines and Spark work","DP-700"]],
  links:[["DP-600 study guide","https://learn.microsoft.com/en-us/credentials/certifications/resources/study-guides/dp-600"],["DP-700 study guide","https://learn.microsoft.com/en-us/credentials/certifications/resources/study-guides/dp-700"],["PL-300 study guide","https://learn.microsoft.com/en-us/credentials/certifications/resources/study-guides/pl-300"]]
-};
-
-var P6={
- id:"p6",n:6,short:"Launch",name:"Launch: portfolio, resume and applications",layer:"gold",layerName:"Gold layer",
- weeks:[11,12],hours:8,cost:"Free",tone:"free",needs:"Phases 3 and 4",
- goal:"Turn everything you built into evidence a hiring manager can read in two minutes. Claim only what you have built or passed; a smaller honest claim survives interviews and a larger one does not.",
- tasks:[
-  {id:"p6-a",t:"Tidy the repo",d:"One README per build with a diagram, what you learned and what you would change. Pin the migration case study."},
-  {id:"p6-b",t:"Update your resume",d:"Refresh the skills section and summary with Fabric, PySpark, Delta and SSIS or SSRS to Fabric migration."},
-  {id:"p6-c",t:"Refresh your LinkedIn profile",d:"New headline, and the repo plus case study in the Featured section."},
-  {id:"p6-d",t:"Prepare three stories",d:"The migration, one medallion build and the production checklist. Use problem, approach, result."},
-  {id:"p6-e",t:"Rehearse the recurring questions",d:"Lakehouse or Warehouse, Mapping data flow or notebook, incremental loads and deletes, Delta MERGE, and how you would migrate an SSIS estate."},
-  {id:"p6-f",t:"Build a target list",d:"Deloitte, Capgemini, NTT DATA, PwC Service Delivery Center, Wipro, Infosys and Cognizant all posted Power BI or Fabric roles this year. Search their careers pages and Naukri for Microsoft Fabric, Power BI and data engineer."},
-  {id:"p6-g",t:"Apply in batches and track replies",d:"Keep a simple sheet and adjust your keywords based on what gets responses."}
- ],
- ship:"An updated resume, a public portfolio and a tracked list of applications.",
- bridge:[["Project work","Resume bullets and interview stories"]],
- links:[["Microsoft Learn: Fabric","https://learn.microsoft.com/en-us/fabric/"]]
 };
 
 var STRETCH=[
@@ -830,13 +794,6 @@ var ROSETTA=[
 ["Stored procedure","Warehouse stored procedure",3]
 ];
 
-var SIGNALS=[
-{h:"Fabric appears next to ADF, not instead of it",p:"Capgemini's Azure Fabric Data Engineer listing asks for Data Factory, Databricks and Synapse experience alongside Fabric, plus strong DAX and Power Query. It prefers the DP-600 and DP-700 certifications.",s:"Capgemini careers listing"},
-{h:"Power BI roles now expect data engineering",p:"A Deloitte Bengaluru role for 4 to 6 years combines Power BI, DAX and star schemas with ETL in ADF, Databricks or SSIS. Python or PySpark is listed as a bonus.",s:"Deloitte India careers, March 2026"},
-{h:"Fabric has reached principal level",p:"NTT DATA posted a Principal Data Engineer role for Microsoft Fabric in Bangalore in July 2026, centred on OneLake, Lakehouse and Data Factory pipelines.",s:"NTT DATA careers, July 2026"},
-{h:"SSIS is in maintenance mode",p:"One migration guide says Microsoft is investing in Fabric Data Factory instead, and that automated SSIS conversion realistically handles about 40 to 60 percent of a production portfolio. The rest is manual work, which is where migration skill earns its fee.",s:"EPC Group, June 2026"}
-];
-
 var FRESH=[
 ["Fabric Spark runtime","Runtime 2.0 (Spark 4.1, Delta 4.2, Python 3.13) is generally available. Microsoft plans to make it the default for new workspaces in late September 2026. Delta 4.x-specific features are experimental.","Phase 2 starts with choosing a runtime, and every lesson runs on 1.3 or 2.0."],
 ["Databricks Free Edition","Documentation updated 11 September 2026: serverless-only, no custom compute, restricted outbound internet, one small SQL warehouse, Unity Catalog ready to use.","The cluster and auto-terminate steps are gone. Sample data is created in code."],
@@ -855,7 +812,6 @@ var COSTS=[
 ["Phase 3","Free during the trial. SQL Server Developer edition is free for the on-prem source."],
 ["Phase 4","Free to low. The Azure side quest may use free-account credit, so set a budget alert on day one."],
 ["Phase 5","Exam fees. Check the current price and any discount offers."],
-["Phase 6","Free."],
 ["Stretch","Azure Databricks and Logic Apps are billable; the rest stays on the trial."]
 ];
 
@@ -1335,7 +1291,7 @@ spark.table("sales_silver").groupBy("customer_id").agg(F.sum("amount")).explain(
 /* ================================================================== */
 /* Assemble + state                                                    */
 /* ================================================================== */
-var PHASES=[P0,P1,P2,P3,P4,P5,P6];
+var PHASES=[P0,P1,P2,P3,P4,P5];
 var LESSONS=0;
 PHASES.forEach(function(p){p.tasks.forEach(function(t){if(t.subs){LESSONS+=t.subs.length;}});});
 var RGB={bronze:[226,144,79],silver:[195,206,230],gold:[255,203,77]};
@@ -1392,7 +1348,7 @@ function mountRing(id,r,sw,withLabel){
 
 function renderRoute(){
   var weeks="",grid="";
-  for(var i=1;i<=12;i++){weeks+="<span>W"+i+"</span>";grid+="<span></span>";}
+  for(var i=1;i<=11;i++){weeks+="<span>W"+i+"</span>";grid+="<span></span>";}
   var rows=PHASES.map(function(p){
     var len=p.weeks[1]-p.weeks[0]+1;
     return '<div class="rrow"><div class="rlabel"><span class="dot" style="background:radial-gradient(circle at 32% 28%,'+HI[p.layer]+',var(--'+p.layer+'))"></span>'+esc(p.short)+"</div>"+
@@ -1401,17 +1357,13 @@ function renderRoute(){
   }).join("");
   var flags='<div class="rrow"><div class="rlabel" style="color:var(--dim)">Milestones</div>'+
    '<div class="rflag" style="grid-column:3 / span 2">Start the trial</div>'+
-   '<div class="rflag end" style="grid-column:9 / span 3">Trial ends, about week 10</div>'+
-   '<div class="rflag gold" style="grid-column:12 / span 2">Start applying</div></div>';
+   '<div class="rflag end" style="grid-column:9 / span 3">Trial ends, about week 10</div></div>';
   $("#routeChart").innerHTML='<div class="rgrid">'+grid+'</div><div class="rhead"><span></span>'+weeks+"</div>"+rows+flags;
 }
 
 function renderStatic(){
   $("#rosetta").innerHTML=ROSETTA.map(function(r){
     return "<tr><td>"+esc(r[0])+"</td><td>"+esc(r[1])+'</td><td><button type="button" class="jump" data-go="p'+r[2]+'">Phase '+r[2]+"</button></td></tr>";
-  }).join("");
-  $("#signals").innerHTML=SIGNALS.map(function(s){
-    return '<div class="sig"><h3>'+esc(s.h)+"</h3><p>"+esc(s.p)+"</p><small>"+esc(s.s)+"</small></div>";
   }).join("");
   $("#freshRows").innerHTML=FRESH.map(function(r){
     return "<tr><td>"+esc(r[0])+"</td><td>"+esc(r[1])+"</td><td>"+esc(r[2])+"</td></tr>";
@@ -1562,7 +1514,7 @@ function nextItem(){
 }
 function renderNext(){
   var n=nextItem(),box=$("#nextUp");
-  if(!n){box.innerHTML='<div><span class="nu-t">Every phase is complete</span><strong>You have shipped the whole path</strong><span class="nu-s">Update your resume with what you built.</span></div>';return;}
+  if(!n){box.innerHTML='<div><span class="nu-t">Every phase is complete</span><strong>You have shipped the whole path</strong><span class="nu-s">Every build is in your repo, ready to show.</span></div>';return;}
   box.innerHTML='<div><span class="nu-t">Next up: phase '+n.p.n+", "+esc(n.p.short)+"</span><strong>"+esc(n.s?n.s.t:n.t.t)+'</strong><span class="nu-s">'+(n.s?esc(n.t.t)+", about "+n.s.mins+" minutes":"Task in "+esc(n.p.name))+'</span></div><button type="button" class="btn primary" data-open-next>Open it</button>';
 }
 
@@ -1595,7 +1547,7 @@ function refresh(silent){
     if(!silent&&full&&!prevPhase[p.id]){
       li.classList.add("burst");setTimeout(function(){li.classList.remove("burst");},1800);
       burst($(".node",li),p.layer,60);
-      toast(i<PHASES.length-1?"Phase "+p.n+" is refined. Next up: phase "+PHASES[i+1].n+", "+PHASES[i+1].short.toLowerCase()+".":"Every phase is complete. Update your resume with what you shipped.");
+      toast(i<PHASES.length-1?"Phase "+p.n+" is refined. Next up: phase "+PHASES[i+1].n+", "+PHASES[i+1].short.toLowerCase()+".":"Every phase is complete. You have shipped the whole path.");
     }
     prevPhase[p.id]=full;
   });
@@ -1777,7 +1729,7 @@ function cosmos(){
 
   /* ---- cached geometry (recomputed on resize / height change only) ---- */
   var phTop=0,phH=1,nodeY=[],nodeLis=[],docMax=1,secs=[],ticks=[],railOn=false,passedN=-1,activeSec=-1,lastSY=-1,py=0,ptarget=0,probeRun=false;
-  var SECS=[["Launch",null],["Route","route"],["Start","start"],["Signal","signal"],["Fresh","fresh"],["Phases","path"],["Stretch","stretch"],["Guardrails","guardrails"]];
+  var SECS=[["Launch",null],["Route","route"],["Start","start"],["Fresh","fresh"],["Phases","path"],["Stretch","stretch"],["Guardrails","guardrails"]];
   function measure(){
     var sy=window.scrollY||0,r=phasesEl.getBoundingClientRect();
     phTop=r.top+sy;phH=r.height;
