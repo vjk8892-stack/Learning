@@ -1724,6 +1724,7 @@ function bindNotes(){
     if(lastFocused&&lastFocused.focus){lastFocused.focus();}
   }
   function onNotesKey(e){
+    if(!$("#conflictDialog").hidden){return;}
     if(e.key==="Escape"){
       if(!infoPopover.hidden){setInfoOpen(false);return;}
       closeNotes();return;
@@ -1731,6 +1732,7 @@ function bindNotes(){
     trapTab(e,drawer);
   }
   function onNotesOutside(e){
+    if(!$("#conflictDialog").hidden&&$("#conflictDialog").contains(e.target)){return;}
     if(!infoPopover.hidden&&!infoPopover.contains(e.target)&&e.target!==infoBtn){setInfoOpen(false);}
     if(drawer.contains(e.target)||e.target.closest("[data-notes-scope]")){return;}
     closeNotes();
