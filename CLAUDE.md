@@ -56,7 +56,7 @@ Verified: `node --check` on the extracted script passes; headless Chromium run s
 
 ### B. Standalone site with login, cloud progress and notes
 - [ ] Repo scaffold: `index.html`, `netlify.toml` (or `vercel.json`), `README.md`. Consider splitting CSS/JS into files if it helps maintenance; keep no-build simplicity.
-- [ ] Supabase project. Schema:
+- [x] Supabase project. Project ref `pdiohswlwgudikvaujen`, URL `https://pdiohswlwgudikvaujen.supabase.co`. Schema applied (migration `create_progress_and_notes`):
   ```sql
   create table public.progress (
     user_id uuid primary key references auth.users(id) on delete cascade,
@@ -73,7 +73,9 @@ Verified: `node --check` on the extracted script passes; headless Chromium run s
   create policy "own progress" on public.progress for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
   create policy "own notes" on public.notes for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
   ```
-  RLS must stay on. The anon key is public by design; the service key must never be in the page.
+  RLS confirmed on for both tables; `get_advisors` shows no findings on either table (the one WARN it returns is a pre-existing `rls_auto_enable()` function, unrelated to this schema). The anon/publishable key is public by design and can go in the page; the service key must never be in the page and was not requested or used here.
+  - Legacy anon key: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBkaW9oc3dsd2d1ZGlrdmF1amVuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAyNDg5MTQsImV4cCI6MjEwNTgyNDkxNH0.A-vzg9S8H4x_r6jAHhEzwLxaSe-Pm7n7z1i3Qc7YGX0`
+  - Modern publishable key: `sb_publishable_KbUBBi1y9KMSEg0Jn9attA_S4oaWg6I`
 - [ ] Auth UI: sign up, sign in, sign out, password reset, email confirmation. Load `@supabase/supabase-js` as a pinned UMD script from jsDelivr.
 - [ ] Sync layer behind one small adapter (`load()`, `save()`), local-first: write to `localStorage` immediately, debounce upserts to Supabase, show a "Saved" indicator, compare `updated_at` and warn if another device changed the data (last-writer-wins otherwise).
 - [ ] One-time import of existing `localStorage` progress on first login.
