@@ -779,7 +779,8 @@ function lessonHTML(s){
    '<section class="ls prove"><h5>Prove it</h5><ul class="proof">'+proof+"</ul>"+quiz+"</section>"+
    (s.watch?'<p class="gotcha"><b>Watch out.</b> '+esc(s.watch)+"</p>":"")+links+
    '<div class="lf"><label class="lchk"><input type="checkbox" data-lesson="'+s.id+'"><span class="box" aria-hidden="true"></span><span>Mark this lesson done</span></label>'+
-   '<button type="button" class="mini" data-next="'+s.id+'">Next lesson</button></div></div>';
+   '<span class="lf-actions"><button type="button" class="mini" data-notes-scope="lesson:'+s.id+'">Add note<i class="notes-dot" aria-hidden="true"></i></button>'+
+   '<button type="button" class="mini" data-next="'+s.id+'">Next lesson</button></span></div></div>';
 }
 
 var SUBMAP={};
@@ -815,12 +816,15 @@ function renderPhases(){
     return '<li class="phase rv soft'+(p.lessons?" wide":"")+'" id="phase-'+p.id+'" data-layer="'+p.layer+'" style="'+layerVars(p)+'">'+
      '<span class="node" aria-hidden="true"><span>'+p.n+"</span></span>"+
      '<article class="panel spot">'+
+      '<div class="ph-head-row">'+
       '<button type="button" class="ph-head" aria-expanded="false" aria-controls="body-'+p.id+'">'+
        '<span><span class="ph-layer"><i></i><b>Phase '+p.n+"</b><span>"+esc(p.layerName)+'</span></span><span class="ph-name">'+esc(p.name)+"</span>"+
        '<span class="ph-meta"><span class="chip">'+weeksLabel(p.weeks)+'</span><span class="chip">About '+p.hours+' hours</span><span class="chip '+p.tone+'">'+esc(p.cost)+'</span><span class="chip">Needs: '+esc(p.needs)+"</span>"+(lc?'<span class="chip new">'+lc+" lessons</span>":"")+"</span></span>"+
        '<span class="ph-right"><span class="pct" aria-label="Tasks done">0/'+p.tasks.length+"</span>"+CHEV+"</span>"+
        '<span class="pbar"><i></i></span>'+
       "</button>"+
+      '<button type="button" class="ph-notes" data-notes-scope="'+p.id+'" aria-label="Notes for phase '+p.n+'">Notes<i class="notes-dot" aria-hidden="true"></i></button>'+
+      "</div>"+
       '<div class="ph-body" id="body-'+p.id+'"><div class="ph-clip"><div class="ph-inner">'+
        '<p class="goal">'+esc(p.goal)+"</p>"+
        '<div class="col"><h4>What to do</h4><ul class="tasks">'+p.tasks.map(taskHTML).join("")+"</ul></div>"+
@@ -997,6 +1001,37 @@ function copyText(t,btn){
   fallback();
 }
 
+function downloadBlob(filename,content,mime){
+  var blob=new Blob([content],{type:mime});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement("a");
+  a.href=url;a.download=filename;document.body.appendChild(a);a.click();
+  document.body.removeChild(a);
+  setTimeout(function(){URL.revokeObjectURL(url);},1000);
+}
+function exportNotesMarkdown(){
+  var lines=["# Notes export","",fmtIST(Date.now())+" (IST)",""];
+  PHASES.forEach(function(p){
+    var phaseRec=notesDoc.notes[p.id];
+    var lessonEntries=[];
+    p.tasks.forEach(function(t){if(t.subs){t.subs.forEach(function(s){var r=notesDoc.notes["lesson:"+s.id];if(r&&r.body&&r.body.trim()){lessonEntries.push([s,r]);}});}});
+    var phaseHas=phaseRec&&phaseRec.body&&phaseRec.body.trim();
+    if(!phaseHas&&!lessonEntries.length){return;}
+    lines.push("## Phase "+p.n+": "+p.short,"");
+    if(phaseHas){lines.push(phaseRec.body,"","_Last edited "+fmtIST(phaseRec.localUpdatedAt)+"_","");}
+    lessonEntries.forEach(function(pair){
+      var s=pair[0],r=pair[1];
+      lines.push("### "+s.t,"",r.body,"","_Last edited "+fmtIST(r.localUpdatedAt)+"_","");
+    });
+  });
+  var scratch=notesDoc.notes.scratch;
+  if(scratch&&scratch.body&&scratch.body.trim()){
+    lines.push("## Scratchpad","",scratch.body,"","_Last edited "+fmtIST(scratch.localUpdatedAt)+"_","");
+  }
+  downloadBlob("notes.md",lines.join("\n"),"text/markdown");
+}
+function exportNotesJSON(){downloadBlob("notes.json",JSON.stringify(notesDoc,null,2),"application/json");}
+
 function bindIO(){
   var panel=$("#ioPanel"),title=$("#ioTitle"),hint=$("#ioHint"),text=$("#ioText"),primary=$("#ioPrimary"),closeBtn=$("#ioClose");
   var exportBtn=$("#exportProgress"),importBtn=$("#importProgress");
@@ -1018,6 +1053,12 @@ function bindIO(){
       writeClipboard(text.value,function(ok){
         hint.textContent=ok?"Copied to your clipboard.":"Could not copy automatically. Select the text below and copy it.";
       });
+    }else if(mode==="notes-import"){
+      title.textContent="Import notes";
+      text.value="";
+      text.readOnly=false;
+      primary.textContent="Import";
+      hint.textContent="Paste notes JSON exported from this page, then select Import. Only valid scopes (p0-p5, lesson:<id>, scratch) within the 50,000 character limit are accepted; a note already here for the same scope is replaced only if the import is newer.";
     }else{
       title.textContent="Import progress";
       text.value="";
@@ -1036,7 +1077,7 @@ function bindIO(){
   function doImport(){
     var parsed;
     try{parsed=JSON.parse(text.value);}catch(e){hint.textContent="That is not valid JSON.";return;}
-    if(!parsed||typeof parsed!=="object"||Array.isArray(parsed)){hint.textContent="Expected a JSON object of id to 1.";return;}
+    if(!parsed||typeof parsed!=="object"||Array.isArray(parsed)){hint.textContent="Expected a JSON object.";return;}
     var added=0,skipped=0;
     Object.keys(parsed).forEach(function(id){
       if(!KNOWN_IDS[id]){skipped++;return;}
@@ -1046,11 +1087,34 @@ function bindIO(){
     closeIO();
     toast("Imported "+added+" item"+(added===1?"":"s")+(skipped?", skipped "+skipped+" unrecognised":"")+".");
   }
+  function doImportNotes(){
+    var parsed;
+    try{parsed=JSON.parse(text.value);}catch(e){hint.textContent="That is not valid JSON.";return;}
+    var incoming=parsed&&parsed.notes&&typeof parsed.notes==="object"?parsed.notes:null;
+    if(!incoming){hint.textContent="Expected {v:1, notes:{...}} as exported from this page.";return;}
+    var added=0,skipped=0;
+    Object.keys(incoming).forEach(function(scope){
+      var rec=incoming[scope];
+      if(!isValidScope(scope)||!rec||typeof rec.body!=="string"||rec.body.length>50000){skipped++;return;}
+      var existing=notesDoc.notes[scope];
+      var at=Number(rec.localUpdatedAt)||Date.now();
+      if(existing&&existing.localUpdatedAt>=at){skipped++;return;}
+      setNoteBody(scope,rec.body);
+      added++;
+    });
+    updateNoteDots();
+    closeIO();
+    toast("Imported "+added+" note"+(added===1?"":"s")+(skipped?", skipped "+skipped:"")+".");
+  }
   exportBtn.addEventListener("click",function(){openIO("export",exportBtn);});
   importBtn.addEventListener("click",function(){openIO("import",importBtn);});
+  $("#menuImportNotes").addEventListener("click",function(){openIO("notes-import",$("#menuImportNotes"));});
+  $("#menuExportNotesMd").addEventListener("click",function(){exportNotesMarkdown();});
+  $("#menuExportNotesJson").addEventListener("click",function(){exportNotesJSON();});
   closeBtn.addEventListener("click",closeIO);
   primary.addEventListener("click",function(){
     if(mode==="export"){writeClipboard(text.value,function(ok){hint.textContent=ok?"Copied to your clipboard.":"Could not copy automatically. Select the text below and copy it.";});}
+    else if(mode==="notes-import"){doImportNotes();}
     else{doImport();}
   });
   panel.addEventListener("click",function(e){if(e.target===panel){closeIO();}});
@@ -1454,6 +1518,18 @@ function renderInsightsPanel(){
   $("#ipSaveStatus").textContent=s.text;
   $("#ipLastSaved").textContent=meta.lastSavedAt?("Last saved "+fmtIST(meta.lastSavedAt)):"Not yet saved to the cloud.";
   $("#ipLastChange").textContent=meta.lastChangeAt?("Last change on this device "+fmtIST(meta.lastChangeAt)):"No changes yet.";
+  var noteCount=0,lastNoteEdit=0;
+  Object.keys(notesDoc.notes).forEach(function(scope){
+    var r=notesDoc.notes[scope];
+    if(r.body&&r.body.trim()){noteCount++;if(r.localUpdatedAt>lastNoteEdit){lastNoteEdit=r.localUpdatedAt;}}
+  });
+  var notesSection=$("#ipNotesSection");
+  if(noteCount){
+    notesSection.hidden=false;
+    $("#ipNotesInfo").textContent=noteCount+" note"+(noteCount===1?"":"s")+", last edited "+fmtIST(lastNoteEdit)+".";
+  }else{
+    notesSection.hidden=true;
+  }
   var wi=weekInfo(),weekEl=$("#ipWeekInfo");
   if(wi){
     weekEl.hidden=false;
@@ -1474,6 +1550,263 @@ function trapTab(e,container){
   var first=f[0],last=f[f.length-1];
   if(e.shiftKey&&document.activeElement===first){e.preventDefault();last.focus();}
   else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first.focus();}
+}
+
+/* ================================================================== */
+/* Notes UI: drawer, editor, markdown preview, search, conflicts       */
+/* ================================================================== */
+function scopeHasNote(scope){var r=notesDoc.notes[scope];return !!(r&&r.body&&r.body.trim());}
+function scopeLabel(scope){
+  if(scope==="scratch"){return "Scratchpad";}
+  var m=/^lesson:(.+)$/.exec(scope);
+  if(m){var s=SUBMAP[m[1]];return s?s.t:scope;}
+  var p=PHASES.filter(function(x){return x.id===scope;})[0];
+  return p?("Phase "+p.n+": "+p.short):scope;
+}
+function extractTags(body){
+  var seen={},tags=[],re=/#([a-zA-Z0-9-]+)/g,m;
+  while((m=re.exec(body||""))){var t=m[1].toLowerCase();if(!seen[t]){seen[t]=1;tags.push(t);}}
+  return tags;
+}
+function allNoteTags(){
+  var seen={};
+  Object.keys(notesDoc.notes).forEach(function(scope){extractTags(notesDoc.notes[scope].body).forEach(function(t){seen[t]=1;});});
+  return Object.keys(seen).sort();
+}
+
+/* Escape first, then apply the markdown transforms, so raw HTML/script
+   in note text is always inert before any real tag is built around it. */
+function inlineMd(s){
+  s=s.replace(/`([^`]+)`/g,"<code>$1</code>");
+  s=s.replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>");
+  s=s.replace(/\*([^*]+)\*/g,"<em>$1</em>");
+  s=s.replace(/\[([^\]]+)\]\(((?:https?:\/\/|mailto:)[^\s)]+)\)/g,function(m,label,url){
+    return '<a href="'+url+'" target="_blank" rel="noopener noreferrer">'+label+"</a>";
+  });
+  s=s.replace(/#([a-zA-Z0-9-]+)/g,'<span class="tagchip-inline">#$1</span>');
+  return s;
+}
+function renderMarkdown(raw){
+  var text=esc(raw||"");
+  var fences=[];
+  text=text.replace(/```([\s\S]*?)```/g,function(m,code){fences.push("<pre><code>"+code+"</code></pre>");return "\u0000F"+(fences.length-1)+"\u0000";});
+  var lines=text.split("\n"),html="",inList=null;
+  function closeList(){if(inList){html+="</"+inList+">";inList=null;}}
+  lines.forEach(function(line){
+    var h=/^(#{1,3})\s+(.*)$/.exec(line);
+    if(h){closeList();html+="<h"+h[1].length+">"+inlineMd(h[2])+"</h"+h[1].length+">";return;}
+    var ul=/^[-*]\s+(.*)$/.exec(line);
+    if(ul){if(inList!=="ul"){closeList();html+="<ul>";inList="ul";}html+="<li>"+inlineMd(ul[1])+"</li>";return;}
+    var ol=/^\d+\.\s+(.*)$/.exec(line);
+    if(ol){if(inList!=="ol"){closeList();html+="<ol>";inList="ol";}html+="<li>"+inlineMd(ol[1])+"</li>";return;}
+    if(line.trim()===""){closeList();return;}
+    closeList();html+="<p>"+inlineMd(line)+"</p>";
+  });
+  closeList();
+  html=html.replace(/\u0000F(\d+)\u0000/g,function(m,i){return fences[Number(i)];});
+  return html;
+}
+
+var currentNoteScope=null,activeTagFilter=null,reflectLessonId=null;
+function showReflectPrompt(lessonId){
+  reflectLessonId=lessonId;
+  $("#reflectInput").value="";
+  $("#reflectCard").hidden=false;
+}
+function bindNotes(){
+  var backdrop=$("#notesBackdrop"),drawer=$("#notesDrawer"),closeBtn=$("#notesClose");
+  var subtitle=$("#notesSubtitle"),title=$("#notesTitle");
+  var searchWrap=$("#notesSearchWrap"),searchInput=$("#notesSearchInput"),tagFiltersEl=$("#notesTagFilters"),resultsEl=$("#notesResults");
+  var textarea=$("#notesTextarea"),preview=$("#notesPreview"),tabEdit=$("#notesTabEdit"),tabPreview=$("#notesTabPreview");
+  var status=$("#notesEditorStatus"),charCount=$("#notesCharCount"),lastEdited=$("#notesLastEdited"),tagChips=$("#notesTagChips");
+  var lessonList=$("#notesLessonList");
+  var lastFocused=null,searchDebounce=null,notesOpen=false;
+
+  function updateCharCount(){charCount.textContent=textarea.value.length+" / 50,000";}
+  function renderTagChips(body){
+    tagChips.innerHTML=extractTags(body).map(function(t){return '<button type="button" class="tagchip" data-tag="'+esc(t)+'">#'+esc(t)+"</button>";}).join("");
+  }
+  function updateLastEdited(rec){lastEdited.textContent=rec&&rec.localUpdatedAt?("Last edited "+fmtIST(rec.localUpdatedAt)):"";}
+  function updateEditorStatus(){
+    if(!window.APP_AUTH_CLIENT){status.textContent="Saved on this device";return;}
+    var s=noteSyncState[currentNoteScope];
+    if(s==="saving"){status.textContent="Saving…";}
+    else if(s==="error"){status.textContent="Could not save · retrying";}
+    else if(s==="offline"){status.textContent="Offline · saved on this device";}
+    else{
+      var rec=notesDoc.notes[currentNoteScope];
+      status.textContent=rec&&rec.serverUpdatedAt?("Saved "+fmtIST(rec.serverUpdatedAt)):"";
+    }
+  }
+  function setPreviewMode(on){
+    tabEdit.classList.toggle("on",!on);tabEdit.setAttribute("aria-selected",String(!on));
+    tabPreview.classList.toggle("on",on);tabPreview.setAttribute("aria-selected",String(on));
+    textarea.hidden=on;preview.hidden=!on;
+    if(on){preview.innerHTML=renderMarkdown(textarea.value)||'<p class="ip-est">Nothing written yet.</p>';}
+  }
+  function renderLessonList(scope){
+    var p=PHASES.filter(function(x){return x.id===scope;})[0];
+    var lessons=[];
+    if(p){p.tasks.forEach(function(t){if(t.subs){t.subs.forEach(function(s){lessons.push(s);});}});}
+    if(!p||!lessons.length){lessonList.hidden=true;lessonList.innerHTML="";return;}
+    lessonList.hidden=false;
+    lessonList.innerHTML="<h4>Lesson notes in this phase</h4>"+lessons.map(function(s){
+      return '<button type="button" data-goto-scope="lesson:'+esc(s.id)+'">'+esc(s.t)+'<i class="notes-dot'+(scopeHasNote("lesson:"+s.id)?" on":"")+'" aria-hidden="true"></i></button>';
+    }).join("");
+  }
+  function renderTagFilters(){
+    tagFiltersEl.innerHTML=allNoteTags().map(function(t){
+      return '<button type="button" class="'+(activeTagFilter===t?"on":"")+'" data-tagfilter="'+esc(t)+'">#'+esc(t)+"</button>";
+    }).join("");
+  }
+  function renderSearchResults(query){
+    var q=(query||"").toLowerCase().trim();
+    var results=Object.keys(notesDoc.notes).filter(function(scope){
+      var rec=notesDoc.notes[scope];
+      if(!rec.body||!rec.body.trim()){return false;}
+      var tags=extractTags(rec.body);
+      if(activeTagFilter&&tags.indexOf(activeTagFilter)===-1){return false;}
+      if(q){
+        if(q.charAt(0)==="#"){if(tags.indexOf(q.slice(1))===-1){return false;}}
+        else if(rec.body.toLowerCase().indexOf(q)===-1&&scopeLabel(scope).toLowerCase().indexOf(q)===-1){return false;}
+      }
+      return true;
+    });
+    resultsEl.innerHTML=results.length?results.map(function(scope){
+      var rec=notesDoc.notes[scope];
+      return '<li><button type="button" data-goto-scope="'+esc(scope)+'"><span class="nr-scope">'+esc(scopeLabel(scope))+'</span><span class="nr-snippet">'+esc(rec.body.slice(0,90))+"</span></button></li>";
+    }).join(""):'<li class="nr-empty">No notes match.</li>';
+  }
+  function checkConflictUI(scope){
+    if(noteConflicts[scope]){openConflictDialog(scope,noteConflicts[scope]);}
+  }
+  function loadScopeIntoEditor(scope){
+    currentNoteScope=scope;
+    title.textContent=scope==="scratch"?"Scratchpad":"Notes";
+    subtitle.textContent=scope==="scratch"?"":scopeLabel(scope);
+    var rec=notesDoc.notes[scope];
+    textarea.value=rec?rec.body:"";
+    updateCharCount();
+    renderTagChips(textarea.value);
+    updateLastEdited(rec);
+    updateEditorStatus();
+    setPreviewMode(false);
+    renderLessonList(scope);
+    searchWrap.hidden=scope!=="scratch";
+    if(scope==="scratch"){renderTagFilters();renderSearchResults(searchInput.value);}
+    checkConflictUI(scope);
+  }
+  function openNotes(scope,opener){
+    lastFocused=opener||document.activeElement;
+    notesOpen=true;
+    backdrop.classList.add("open");drawer.classList.add("open");
+    loadScopeIntoEditor(scope);
+    document.addEventListener("keydown",onNotesKey);
+    document.addEventListener("click",onNotesOutside,true);
+    setTimeout(function(){textarea.focus();},260);
+  }
+  function closeNotes(){
+    if(!notesOpen){return;}
+    notesOpen=false;
+    drawer.classList.remove("open");backdrop.classList.remove("open");
+    document.removeEventListener("keydown",onNotesKey);
+    document.removeEventListener("click",onNotesOutside,true);
+    if(lastFocused&&lastFocused.focus){lastFocused.focus();}
+  }
+  function onNotesKey(e){if(e.key==="Escape"){closeNotes();return;}trapTab(e,drawer);}
+  function onNotesOutside(e){
+    if(drawer.contains(e.target)||e.target.closest("[data-notes-scope]")){return;}
+    closeNotes();
+  }
+
+  onNotesChanged(function(){
+    updateNoteDots();
+    window.onbeforeunload=(anyNoteSyncInFlight()||anyNoteUnsynced())?function(){return "";}:null;
+    if(!notesOpen){return;}
+    updateLastEdited(notesDoc.notes[currentNoteScope]);
+    updateEditorStatus();
+    checkConflictUI(currentNoteScope);
+    if(!searchWrap.hidden){renderTagFilters();renderSearchResults(searchInput.value);}
+  });
+
+  document.addEventListener("click",function(e){
+    var b=e.target.closest("[data-notes-scope]");
+    if(b){openNotes(b.getAttribute("data-notes-scope"),b);}
+  });
+  closeBtn.addEventListener("click",closeNotes);
+  backdrop.addEventListener("click",closeNotes);
+  tabEdit.addEventListener("click",function(){setPreviewMode(false);});
+  tabPreview.addEventListener("click",function(){setPreviewMode(true);});
+  textarea.addEventListener("input",function(){
+    updateCharCount();renderTagChips(textarea.value);
+    setNoteBody(currentNoteScope,textarea.value);
+    updateLastEdited(notesDoc.notes[currentNoteScope]);
+    updateEditorStatus();
+  });
+  tagChips.addEventListener("click",function(e){
+    var b=e.target.closest("[data-tag]");if(!b){return;}
+    activeTagFilter=b.getAttribute("data-tag");
+    loadScopeIntoEditor("scratch");
+  });
+  tagFiltersEl.addEventListener("click",function(e){
+    var b=e.target.closest("[data-tagfilter]");if(!b){return;}
+    var t=b.getAttribute("data-tagfilter");
+    activeTagFilter=activeTagFilter===t?null:t;
+    renderTagFilters();renderSearchResults(searchInput.value);
+  });
+  searchInput.addEventListener("input",function(){
+    clearTimeout(searchDebounce);
+    var q=searchInput.value;
+    searchDebounce=setTimeout(function(){renderSearchResults(q);},250);
+  });
+  $("#notesBody").addEventListener("click",function(e){
+    var b=e.target.closest("[data-goto-scope]");if(!b){return;}
+    loadScopeIntoEditor(b.getAttribute("data-goto-scope"));
+  });
+
+  function openConflictDialog(scope,c){
+    var dlg=$("#conflictDialog");
+    if(!dlg.hidden&&dlg.getAttribute("data-scope")===scope){return;}
+    dlg.setAttribute("data-scope",scope);
+    $("#conflictLocalTime").textContent="Yours, "+fmtIST(c.local.at);
+    $("#conflictRemoteTime").textContent="Theirs, "+fmtIST(c.remote.at);
+    $("#conflictLocalBody").textContent=c.local.body;
+    $("#conflictRemoteBody").textContent=c.remote.body;
+    dlg.hidden=false;
+    $("#conflictKeepMine").focus();
+    function onKey(e){if(e.key!=="Escape"){trapTab(e,dlg);}}
+    document.addEventListener("keydown",onKey);
+    function finish(){document.removeEventListener("keydown",onKey);dlg.hidden=true;dlg.removeAttribute("data-scope");if(currentNoteScope===scope&&notesOpen){loadScopeIntoEditor(scope);}}
+    $("#conflictKeepMine").onclick=function(){resolveConflictKeepMine(scope);finish();};
+    $("#conflictUseTheirs").onclick=function(){resolveConflictUseTheirs(scope);finish();};
+    $("#conflictCopyMine").onclick=function(){resolveConflictCopyMine(scope);finish();toast("Copied your version to the clipboard.");};
+  }
+
+  $("#reflectSkip").addEventListener("click",function(){$("#reflectCard").hidden=true;});
+  $("#reflectSave").addEventListener("click",function(){
+    var text=$("#reflectInput").value.trim();
+    $("#reflectCard").hidden=true;
+    if(!text||!reflectLessonId){return;}
+    var scope="lesson:"+reflectLessonId;
+    var existing=notesDoc.notes[scope];
+    var line=fmtIST(Date.now())+" — "+text;
+    var body=existing&&existing.body?existing.body+"\n\n"+line:line;
+    setNoteBody(scope,body);
+    toast("Added to the lesson note.");
+  });
+}
+function updateNoteDots(){
+  $$("[data-notes-scope]").forEach(function(b){
+    var dot=$(".notes-dot",b);
+    if(dot){dot.classList.toggle("on",scopeHasNote(b.getAttribute("data-notes-scope")));}
+  });
+  var wrap=$("#notesLessonList");
+  if(wrap&&!wrap.hidden){
+    $$("[data-goto-scope]",wrap).forEach(function(b){
+      var dot=$(".notes-dot",b);
+      if(dot){dot.classList.toggle("on",scopeHasNote(b.getAttribute("data-goto-scope")));}
+    });
+  }
 }
 
 function bindInsights(){
@@ -1601,9 +1934,13 @@ function bindInsights(){
 function bind(){
   document.addEventListener("change",function(e){
     var t=e.target; if(!t.matches) return;
-    var id=t.getAttribute("data-task")||t.getAttribute("data-lesson"); if(!id) return;
+    var lessonId=t.getAttribute("data-lesson");
+    var id=t.getAttribute("data-task")||lessonId; if(!id) return;
     setItem(id,t.checked);
-    if(t.checked){burst(t.nextElementSibling,t.closest(".phase")?t.closest(".phase").getAttribute("data-layer"):"gold",22);}
+    if(t.checked){
+      burst(t.nextElementSibling,t.closest(".phase")?t.closest(".phase").getAttribute("data-layer"):"gold",22);
+      if(lessonId){showReflectPrompt(lessonId);}
+    }
     persistItems();refresh(false);progressChanged();
   });
   document.addEventListener("click",function(e){
@@ -1631,6 +1968,8 @@ function bind(){
   });
   bindIO();
   bindInsights();
+  bindNotes();
+  updateNoteDots();
   var spEv=null,spRaf=0;
   document.addEventListener("pointermove",function(e){
     spEv=e;
