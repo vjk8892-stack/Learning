@@ -1,17 +1,20 @@
-# SSIS to Fabric
+# Learning
 
-An 11-week, self-paced learning path for a SQL Server / SSIS / SSRS / Power BI
-developer moving to Microsoft Fabric, Spark and Delta Lake: a route chart,
-six phases of tasks (50 tasks total), a 24-lesson pilot in phase 2, stretch
-missions and guardrails on cost and pace.
+**SSIS to Fabric in 11 weeks** — a self-paced learning path for a SQL Server
+/ SSIS / SSRS / Power BI developer moving to Microsoft Fabric, Spark and
+Delta Lake: a route chart, six phases of tasks (50 tasks total), a 24-lesson
+pilot in phase 2, stretch missions and guardrails on cost and pace.
 
 ## What's here
 
 - `index.html` — the page markup and styles. Plain HTML and CSS, no build
   step, no dependencies other than Google Fonts and (for login) a pinned
   `@supabase/supabase-js` build from jsDelivr.
-- `js/early.js` — a tiny blocking script that adds a `.js` class before
-  first paint, so scroll-reveal animations start hidden with no flash.
+- `js/early.js` — a tiny blocking script that defines `window.BRAND`
+  ("Learning", the single source of truth for the brand name — change it
+  here, not by hunting for the string elsewhere) and sets the page title and
+  meta description from it, then adds a `.js` class before first paint, so
+  scroll-reveal animations start hidden with no flash.
 - `js/app.js` — the page's own logic: content, rendering, progress,
   export/import.
 - `js/auth.js` — the login gate: checks the session, shows the splash,
@@ -53,13 +56,44 @@ one intended user has an account, so this stays a single-user page.
 ## Current state
 
 Progress is stored client-side in `localStorage` under the key
-`ssis-to-fabric-path-v2`, plus export/import as JSON from the footer. Login
-is wired up (`js/auth.js`, Supabase email/password) and gates the page, but
-progress and notes do not yet sync to Supabase — the `progress` and `notes`
-tables and their row-level-security policies exist (see `supabase/schema.sql`),
-but nothing reads or writes them yet. Until the sync layer is built, this is
-still a single-browser, single-device tool for progress; login only decides
-who gets to see the page.
+`ssis-to-fabric-path-v2`, plus export/import as JSON from the footer. A
+second key, `ssis-to-fabric-path-meta`, holds `{ lastSavedAt, lastChangeAt,
+startDate }` — `lastChangeAt` updates on every tick/untick/reset/import,
+`startDate` is set from the insights panel's "Set start date" control, and
+`lastSavedAt` stays unset until the sync layer (below) exists to set it.
+Login is wired up (`js/auth.js`, Supabase email/password) and gates the
+page, but progress and notes do not yet sync to Supabase — the `progress`
+and `notes` tables and their row-level-security policies exist (see
+`supabase/schema.sql`), but nothing reads or writes them yet. Until the sync
+layer is built, this is still a single-browser, single-device tool for
+progress; login only decides who gets to see the page.
+
+## Insights and account (top-right of the nav)
+
+- **Insights pill**: the progress ring, percentage, a status dot and a
+  "Saved on this device · &lt;time&gt;" line (time always shown in IST,
+  regardless of the visitor's own device time zone). Collapses to just the
+  ring and dot at 900px and narrower. Click it to open a panel (a popover on
+  wide screens, a bottom sheet at 900px and narrower) with completion
+  counts, lessons done, an estimated hours-done figure (explicitly labelled
+  an estimate — it's tasks-done × phase-hours ÷ tasks-in-phase, summed),
+  a thin bar per phase, the current phase and next task with an "Open it"
+  button, the saving status, and an optional start date that shows
+  "Week N of 11" and a rough planned-vs-done hours comparison. The dot is
+  always grey/"local only" for now, since nothing syncs to the cloud yet
+  (see "Current state"); once the sync layer lands it will also show
+  saved/saving/offline/error.
+- **Account circle**: only visible when signed in, shows the first letter of
+  your email. Its menu has your email, Export/Import progress (the same
+  feature as the footer buttons, just reachable from here too), Sign out,
+  and **Sign out and clear this device** — which also wipes the
+  `ssis-to-fabric-path-v2` and `ssis-to-fabric-path-meta` `localStorage`
+  keys, for a shared or public computer. The footer's own Sign out button
+  still works independently.
+- Both are proper dialogs: `Escape` closes, clicking outside closes, focus
+  is trapped while open (Tab wraps within the insights panel; arrow keys
+  move between the account menu's items) and returns to the button that
+  opened it on close.
 
 ## Running it locally
 

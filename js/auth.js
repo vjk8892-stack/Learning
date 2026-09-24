@@ -7,6 +7,10 @@ var gate=$("#gate"),splash=$("#gateSplash"),loginForm=$("#loginForm");
 var emailInput=$("#loginEmail"),pwInput=$("#loginPassword"),pwToggle=$("#pwToggle");
 var errorEl=$("#loginError"),submitBtn=$("#loginSubmit");
 var localBanner=$("#localBanner"),signOutBtn=$("#signOut");
+var loginHeading=$("#loginHeading");
+
+var BRAND=window.BRAND||"Learning";
+if(loginHeading){loginHeading.textContent="Sign in to "+BRAND;}
 
 var GENERIC_ERROR="Sign-in failed. Check your email and password and try again.";
 var MAX_ATTEMPTS=5,LOCK_MS=60000;
