@@ -1,23 +1,26 @@
 # SSIS to Fabric learning path: handoff brief
 
 Owner: a data/BI professional (SQL Server, SSIS, SSRS, Power BI, DAX, ADF) upskilling to Microsoft Fabric, Spark and Delta.
-State as of 24 September 2026. Current deliverable: `index.html` (single file, no build step, no dependencies except Google Fonts).
+State as of 24 September 2026. Current deliverable: `index.html` plus `js/early.js` and `js/app.js` (plain HTML/CSS/JS, no build step, no dependencies except Google Fonts).
 
 ## What exists
 
 A dark, space-themed learning-path page:
-- Hero animation, 12-week route chart, "where you start" (translation table), "why these skills" (job-listing signals), freshness check table, 7 phases, stretch missions, guardrails.
-- 57 tasks in 7 phases. **Phase 2 is a pilot with 24 lessons** (Learn, Try it, Break it, Prove it, self-test questions, copyable code). Other phases are task lists only.
+- Hero animation, 11-week route chart, "where you start" (translation table), freshness check table, 6 phases, stretch missions, guardrails.
+- 50 tasks in 6 phases. **Phase 2 is a pilot with 24 lessons** (Learn, Try it, Break it, Prove it, self-test questions, copyable code). Other phases are task lists only.
 - Progress is stored in `localStorage` under key `ssis-to-fabric-path-v2` (a flat object: `{ "<taskId or lessonId>": 1 }`). Task ids look like `p1-a`; lesson ids like `p2-merge-3`. A task with lessons is done when all its lessons are done (derived, never stored).
-- It was also published as a claude.ai artifact. The file contains no `window.claude` calls, so it runs anywhere.
+- Export/import progress as JSON from the footer (clipboard, with a select-and-copy fallback; import is validated against known task/lesson ids, unrecognised ids are skipped, valid ones are merged into existing progress rather than replacing it).
+- No job-search content: it was deliberately removed (see "Pending work" below for what changed).
+- It was also published as a claude.ai artifact. The page has no `window.claude` calls, so it runs anywhere.
 
 ## How the file is organised (search for these markers)
 
-- `<style>`: tokens in `:root` (dark-only; all theme selectors resolve to the same palette). Sections: deep space layers, slow arrivals (`.rv`), nav, hero, route, phases + trajectory, tasks with lessons, gutters (wide screens), reduced-motion block at the end.
-- `<body>`: `#cosmos` (star layers, nebulae, planets, aura), `#rail` and `#orbit` (wide-screen gutters), `#fx` (burst canvas), then sections `#route #start #signal #fresh #path #stretch #guardrails`.
-- `<script>` (one IIFE), in this order: helpers, **content data** (`P0 P1 P2 P3 P4 P5 P6`, `STRETCH`, `ROSETTA`, `SIGNALS`, `FRESH`, `COSTS`), state (`done`, `taskDone`), renderers (`renderRoute`, `renderStatic`, `renderPhases`, `lessonHTML`), refresh + interactions, `cosmos()`, `hero()`, boot.
+- `index.html` `<head>`: loads `js/early.js` synchronously (adds the `.js` class before first paint, so `.rv` reveal animations start hidden) then the page's own `<style>` block (dark-only tokens in `:root`; sections: deep space layers, slow arrivals (`.rv`), nav, hero, route, phases + trajectory, tasks with lessons, import/export panel, gutters (wide screens), reduced-motion block at the end).
+- `<body>`: `#cosmos` (star layers, nebulae, planets, aura), `#rail` and `#orbit` (wide-screen gutters), `#fx` (burst canvas), then sections `#route #start #fresh #path #stretch #guardrails`, footer (reset/export/import), and the `#ioPanel` export/import dialog. `js/app.js` is loaded at the end of body (not deferred, same position as the old inline script).
+- `js/app.js` (one IIFE), in this order: helpers, **content data** (`P0 P1 P2 P3 P4 P5`, `STRETCH`, `ROSETTA`, `FRESH`, `COSTS`), state (`done`, `taskDone`, `KNOWN_IDS`), renderers (`renderRoute`, `renderStatic`, `renderPhases`, `lessonHTML`), refresh + interactions (including `bindIO` for export/import), `cosmos()`, `hero()`, boot.
 - Lessons render lazily on first open (`ensureLesson`). Code is stored with `String.raw` (`R` tag); never put a backtick or `${` inside lesson code.
 - Phase object shape: `{id,n,short,name,layer,layerName,weeks,hours,cost,tone,needs,goal,tasks[],ship,note,bridge[],links[]}`. Task: `{id,t,d,subs?}`. Lesson: `{id,t,mins,learn[],try[],expect,brk,prove[],quiz[],watch,links}`.
+- The two-file split (`js/early.js`, `js/app.js`) exists only to satisfy the Content-Security-Policy in `netlify.toml` (`script-src 'self' https://cdn.jsdelivr.net`, no `'unsafe-inline'`). If the CSP ever needs to change, keep in mind `early.js` must stay a blocking, non-deferred `<head>` script or the `.js`-class-before-paint behaviour breaks.
 
 ## Design decisions worth keeping
 
@@ -55,7 +58,8 @@ A dark, space-themed learning-path page:
 Verified: `node --check` on the extracted script passes; headless Chromium run shows no console errors, 6 phases, 98 total hours, 24 lessons, route ends at W11, no `#signal` in the DOM, progress survives reload, and no horizontal overflow at 390px.
 
 ### B. Standalone site with login, cloud progress and notes
-- [x] Repo scaffold: `index.html` (already existed), `netlify.toml` (publish root, basic security headers, no build step) and `README.md` added. Kept the single-file no-build approach rather than splitting CSS/JS; revisit only if maintenance pain shows up.
+- [x] Repo scaffold: `index.html` (already existed), `netlify.toml` (publish root, basic security headers, no build step) and `README.md` added. CSS stayed inline (`style-src` allows `'unsafe-inline'`); the two inline `<script>` blocks were later moved to `js/early.js` and `js/app.js` because the CSP needs `script-src` without `'unsafe-inline'` (see below).
+- [x] Hardening pass (2026-09-24, second session): `<meta name="robots" content="noindex">` plus a root `robots.txt` (`Disallow: /`) since this is a private in-progress tool, not something to index. `Content-Security-Policy` added to `netlify.toml`: `default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' blob: data:; connect-src 'self' https://pdiohswlwgudikvaujen.supabase.co`. That required moving both inline `<script>` blocks out to `js/early.js` and `js/app.js` (see "How the file is organised" above) since `script-src` has no `'unsafe-inline'`. Retested against a local server that actually sends these headers (not just `file://`): no console or CSP-violation errors, no horizontal overflow at 390px, `#rail`/`#orbit` both visible at 1890px, progress still persists across reload. Export progress / Import progress buttons added to the footer: export copies the current `done` object as JSON to the clipboard (falls back to a visible, pre-selected textarea if the clipboard API is unavailable or blocked); import parses pasted JSON, keeps only ids present in `KNOWN_IDS` (built from `PHASES` task and lesson ids), merges them into existing progress rather than replacing it, and reports counts imported/skipped. Confirmed unknown ids (including an XSS-attempt string used as an id) are silently skipped and never reach `innerHTML`.
 - [x] Supabase project. Project ref `pdiohswlwgudikvaujen`, URL `https://pdiohswlwgudikvaujen.supabase.co`. Schema applied as two migrations, `create_progress_and_notes` then `harden_progress_and_notes_grants`; the live DDL is mirrored in `supabase/schema.sql`. "Automatically expose new tables" is OFF for this project, so table grants are explicit, not inherited.
   - `public.progress` (`user_id` pk/fk to `auth.users`, `data jsonb`, `updated_at`) and `public.notes` (`user_id, scope` pk, `user_id` fk to `auth.users`, `body text`, `updated_at`) as specified, both with RLS enabled.
   - `notes.body` has a `check (char_length(body) <= 50000)` constraint.
