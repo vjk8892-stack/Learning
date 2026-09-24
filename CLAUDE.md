@@ -55,7 +55,7 @@ A dark, space-themed learning-path page:
 Verified: `node --check` on the extracted script passes; headless Chromium run shows no console errors, 6 phases, 98 total hours, 24 lessons, route ends at W11, no `#signal` in the DOM, progress survives reload, and no horizontal overflow at 390px.
 
 ### B. Standalone site with login, cloud progress and notes
-- [ ] Repo scaffold: `index.html`, `netlify.toml` (or `vercel.json`), `README.md`. Consider splitting CSS/JS into files if it helps maintenance; keep no-build simplicity.
+- [x] Repo scaffold: `index.html` (already existed), `netlify.toml` (publish root, basic security headers, no build step) and `README.md` added. Kept the single-file no-build approach rather than splitting CSS/JS; revisit only if maintenance pain shows up.
 - [x] Supabase project. Project ref `pdiohswlwgudikvaujen`, URL `https://pdiohswlwgudikvaujen.supabase.co`. Schema applied as two migrations, `create_progress_and_notes` then `harden_progress_and_notes_grants`; the live DDL is mirrored in `supabase/schema.sql`. "Automatically expose new tables" is OFF for this project, so table grants are explicit, not inherited.
   - `public.progress` (`user_id` pk/fk to `auth.users`, `data jsonb`, `updated_at`) and `public.notes` (`user_id, scope` pk, `user_id` fk to `auth.users`, `body text`, `updated_at`) as specified, both with RLS enabled.
   - `notes.body` has a `check (char_length(body) <= 50000)` constraint.
