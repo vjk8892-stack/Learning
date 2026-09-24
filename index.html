@@ -519,9 +519,17 @@ footer p{max-width:70ch}
   .notes-drawer{left:0;right:0;top:auto;bottom:0;width:100%;max-height:85vh;border-radius:18px 18px 0 0;border-bottom:0;transform:translateY(100%)}
   .notes-drawer.open{transform:translateY(0)}
 }
-.notes-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:18px 20px 12px;border-bottom:1px solid var(--line)}
+.notes-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:18px 20px 12px;border-bottom:1px solid var(--line);position:relative}
 .notes-head h3{font-size:1.1rem}
 .notes-sub{color:var(--muted);font-size:.86rem;margin-top:2px}
+.notes-head-actions{display:flex;align-items:center;gap:6px;flex:none}
+.notes-info-btn{width:26px;height:26px;border-radius:50%;border:1px solid var(--line-2);background:none;color:var(--muted);font:700 .8rem var(--display);font-style:italic;cursor:pointer;display:grid;place-items:center;padding:0;transition:color .6s var(--ease),border-color .6s var(--ease)}
+.notes-info-btn:hover,.notes-info-btn.on{color:var(--gold);border-color:var(--gold)}
+.notes-info-popover{position:absolute;top:calc(100% + 6px);right:20px;width:min(280px,calc(100% - 40px));background:var(--panel-solid);border:1px solid var(--line-2);border-radius:10px;padding:14px 16px;box-shadow:0 20px 50px -20px rgba(0,0,0,.6);z-index:190}
+.notes-info-popover[hidden]{display:none}
+.notes-info-popover h4{font-size:.86rem;margin-bottom:8px;color:var(--gold)}
+.notes-info-popover ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px;font-size:.84rem;color:var(--soft)}
+.notes-info-popover code{background:rgba(255,255,255,.06);padding:1px 5px;border-radius:4px;font:400 .85em var(--mono)}
 .notes-body{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:16px;min-height:0}
 .notes-search{display:flex;flex-direction:column;gap:10px}
 .notes-search input{background:#03051a;color:var(--text);border:1px solid var(--line-2);border-radius:8px;padding:9px 12px;font:inherit}
@@ -966,7 +974,22 @@ html:not(.gate-open) header.nav,html:not(.gate-open) main,html:not(.gate-open) f
       <h3 id="notesTitle">Notes</h3>
       <p class="notes-sub" id="notesSubtitle"></p>
     </div>
-    <button type="button" class="ip-close" id="notesClose" aria-label="Close notes">&times;</button>
+    <div class="notes-head-actions">
+      <button type="button" class="notes-info-btn" id="notesInfoBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="notesInfoPopover" aria-label="Formatting help">i</button>
+      <button type="button" class="ip-close" id="notesClose" aria-label="Close notes">&times;</button>
+    </div>
+    <div class="notes-info-popover" id="notesInfoPopover" role="dialog" aria-labelledby="notesInfoTitle" hidden>
+      <h4 id="notesInfoTitle">Formatting</h4>
+      <ul>
+        <li><code># Heading</code>, <code>## Heading</code>, <code>### Heading</code></li>
+        <li><code>- item</code> or <code>1. item</code> for lists</li>
+        <li><code>**bold**</code> and <code>*italic*</code></li>
+        <li><code>`inline code`</code></li>
+        <li><code>```</code> code fence <code>```</code></li>
+        <li><code>[label](https://link)</code></li>
+        <li><code>#tag</code> — click a tag to filter the scratchpad</li>
+      </ul>
+    </div>
   </div>
   <div class="notes-body" id="notesBody">
     <div class="notes-search" id="notesSearchWrap" hidden>
@@ -982,7 +1005,7 @@ html:not(.gate-open) header.nav,html:not(.gate-open) main,html:not(.gate-open) f
         </div>
         <span class="notes-status" id="notesEditorStatus" aria-live="polite"></span>
       </div>
-      <textarea class="notes-textarea" id="notesTextarea" maxlength="50000" aria-label="Note text" placeholder="Write in plain text or light Markdown: # headings, - lists, **bold**, *italic*, `code`, ```code fences```, [links](https://...), #tags."></textarea>
+      <textarea class="notes-textarea" id="notesTextarea" maxlength="50000" aria-label="Note text" placeholder="Write your note here..."></textarea>
       <div class="notes-preview" id="notesPreview" hidden></div>
       <div class="notes-meta-row">
         <span id="notesCharCount">0 / 50,000</span>

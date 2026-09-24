@@ -1620,7 +1620,15 @@ function bindNotes(){
   var textarea=$("#notesTextarea"),preview=$("#notesPreview"),tabEdit=$("#notesTabEdit"),tabPreview=$("#notesTabPreview");
   var status=$("#notesEditorStatus"),charCount=$("#notesCharCount"),lastEdited=$("#notesLastEdited"),tagChips=$("#notesTagChips");
   var lessonList=$("#notesLessonList");
+  var infoBtn=$("#notesInfoBtn"),infoPopover=$("#notesInfoPopover");
   var lastFocused=null,searchDebounce=null,notesOpen=false;
+
+  function setInfoOpen(on){
+    infoPopover.hidden=!on;
+    infoBtn.setAttribute("aria-expanded",String(on));
+    infoBtn.classList.toggle("on",on);
+  }
+  infoBtn.addEventListener("click",function(e){e.stopPropagation();setInfoOpen(infoPopover.hidden);});
 
   function updateCharCount(){charCount.textContent=textarea.value.length+" / 50,000";}
   function renderTagChips(body){
@@ -1681,6 +1689,7 @@ function bindNotes(){
     if(noteConflicts[scope]){openConflictDialog(scope,noteConflicts[scope]);}
   }
   function loadScopeIntoEditor(scope){
+    setInfoOpen(false);
     currentNoteScope=scope;
     title.textContent=scope==="scratch"?"Scratchpad":"Notes";
     subtitle.textContent=scope==="scratch"?"":scopeLabel(scope);
@@ -1709,12 +1718,20 @@ function bindNotes(){
     if(!notesOpen){return;}
     notesOpen=false;
     drawer.classList.remove("open");backdrop.classList.remove("open");
+    setInfoOpen(false);
     document.removeEventListener("keydown",onNotesKey);
     document.removeEventListener("click",onNotesOutside,true);
     if(lastFocused&&lastFocused.focus){lastFocused.focus();}
   }
-  function onNotesKey(e){if(e.key==="Escape"){closeNotes();return;}trapTab(e,drawer);}
+  function onNotesKey(e){
+    if(e.key==="Escape"){
+      if(!infoPopover.hidden){setInfoOpen(false);return;}
+      closeNotes();return;
+    }
+    trapTab(e,drawer);
+  }
   function onNotesOutside(e){
+    if(!infoPopover.hidden&&!infoPopover.contains(e.target)&&e.target!==infoBtn){setInfoOpen(false);}
     if(drawer.contains(e.target)||e.target.closest("[data-notes-scope]")){return;}
     closeNotes();
   }
