@@ -106,13 +106,19 @@ loginForm.addEventListener("submit",function(e){
   });
 });
 
-signOutBtn.addEventListener("click",function(){
+function doSignOut(){
   signOutBtn.disabled=true;
   client.auth.signOut().then(function(){
     signOutBtn.disabled=false;
     signOutBtn.hidden=true;
     showLogin();
   });
+}
+window.APP_AUTH_SIGNOUT=doSignOut;
+
+signOutBtn.addEventListener("click",function(){
+  if(window.APP_SYNC&&window.APP_SYNC.guardSignOut){window.APP_SYNC.guardSignOut(doSignOut);}
+  else{doSignOut();}
 });
 
 showSplash();

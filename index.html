@@ -490,6 +490,14 @@ footer p{max-width:70ch}
 .io-text{width:100%;min-height:180px;resize:vertical;background:#03051a;color:var(--text);border:1px solid var(--line-2);border-radius:8px;padding:10px 12px;font:400 .84rem/1.5 var(--mono);tab-size:2}
 .io-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end;margin-top:14px}
 
+/* ---------- Sync warning dialog ---------- */
+.sync-warn{position:fixed;inset:0;z-index:200;display:grid;place-items:center;padding:20px;background:rgba(2,3,10,.8)}
+.sync-warn[hidden]{display:none}
+.sync-warn-box{width:min(420px,100%);background:var(--panel-solid);border:1px solid var(--line-2);border-radius:14px;padding:22px 24px;box-shadow:0 30px 80px -30px rgba(0,0,0,.7)}
+.sync-warn-box h3{font-size:1.1rem;margin-bottom:8px}
+.sync-warn-box p{color:var(--soft);font-size:.92rem;margin-bottom:18px}
+.sync-warn-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end}
+
 /* ---------- Login gate ---------- */
 html:not(.gate-open) header.nav,html:not(.gate-open) main,html:not(.gate-open) footer{display:none}
 .gate{position:fixed;inset:0;z-index:500;display:grid;place-items:center;padding:20px;background:rgba(2,3,10,.92);
@@ -853,6 +861,18 @@ html:not(.gate-open) header.nav,html:not(.gate-open) main,html:not(.gate-open) f
     <div class="io-actions">
       <button class="mini" id="ioPrimary" type="button">Copy</button>
       <button class="mini" id="ioClose" type="button">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="sync-warn" id="syncWarn" role="alertdialog" aria-modal="true" aria-labelledby="syncWarnTitle" hidden>
+  <div class="sync-warn-box">
+    <h3 id="syncWarnTitle">Not saved to the cloud yet</h3>
+    <p id="syncWarnBody"></p>
+    <div class="sync-warn-actions">
+      <button type="button" class="mini" id="syncWarnExport">Export progress</button>
+      <button type="button" class="btn ghost" id="syncWarnCancel">Cancel</button>
+      <button type="button" class="btn primary" id="syncWarnProceed">Sign out anyway</button>
     </div>
   </div>
 </div>

@@ -638,10 +638,43 @@ var HI={bronze:"#ffd0a4",silver:"#f2f6ff",gold:"#fff3c2"};
 var BRAND=window.BRAND||"Learning";
 var WEEKS_TOTAL=11;
 
-var KEY="ssis-to-fabric-path-v2";
+var KEY_V2="ssis-to-fabric-path-v2";
+var KEY_V3="ssis-to-fabric-path-v3";
+var items={};
 var done={};
-try{done=JSON.parse(window.localStorage.getItem(KEY)||"{}")||{};}catch(e){done={};}
-function persist(){try{window.localStorage.setItem(KEY,JSON.stringify(done));}catch(e){}}
+(function loadItems(){
+  try{
+    var raw=window.localStorage.getItem(KEY_V3);
+    if(raw){
+      var parsed=JSON.parse(raw);
+      if(parsed&&parsed.items&&typeof parsed.items==="object"){items=parsed.items;return;}
+    }
+  }catch(e){}
+  /* No v3 yet: migrate the legacy v2 flat {id:1} object. Every migrated
+     item gets the same "now" timestamp; a real edit after this always
+     has a later one, so future merges still resolve correctly. */
+  try{
+    var v2=JSON.parse(window.localStorage.getItem(KEY_V2)||"{}")||{};
+    var now=Date.now();
+    Object.keys(v2).forEach(function(id){if(v2[id]){items[id]=[1,now];}});
+  }catch(e){}
+  /* Only write v3 now if there was actually something to migrate. An
+     empty v3 written pre-emptively (nothing in v2 either) would wrongly
+     look like "already migrated" on a later load and block picking up
+     a v2 write that happens afterwards (e.g. from an older cached tab). */
+  if(Object.keys(items).length){persistItems();}
+})();
+function rebuildDone(){
+  done={};
+  Object.keys(items).forEach(function(id){if(items[id]&&items[id][0]){done[id]=1;}});
+}
+rebuildDone();
+function persistItems(){try{window.localStorage.setItem(KEY_V3,JSON.stringify({v:1,items:items}));}catch(e){}}
+function setItem(id,val){
+  items[id]=[val?1:0,Date.now()];
+  if(val){done[id]=1;}else{delete done[id];}
+}
+function persist(){rebuildDone();persistItems();}
 function taskDone(t){return t.subs?t.subs.every(function(s){return !!done[s.id];}):!!done[t.id];}
 var TOTAL=PHASES.reduce(function(a,p){return a+p.tasks.length;},0);
 var TOTAL_HOURS=PHASES.reduce(function(a,p){return a+p.hours;},0);
@@ -652,7 +685,7 @@ var META_KEY="ssis-to-fabric-path-meta";
 var meta={};
 try{meta=JSON.parse(window.localStorage.getItem(META_KEY)||"{}")||{};}catch(e){meta={};}
 function persistMeta(){try{window.localStorage.setItem(META_KEY,JSON.stringify(meta));}catch(e){}}
-function noteChange(){meta.lastChangeAt=Date.now();persistMeta();updateSyncUI();}
+function noteChange(){meta.lastChangeAt=Date.now();persistMeta();updateSyncUI();scheduleSync();}
 
 /* ================================================================== */
 /* Rendering                                                           */
@@ -1006,9 +1039,9 @@ function bindIO(){
     var added=0,skipped=0;
     Object.keys(parsed).forEach(function(id){
       if(!KNOWN_IDS[id]){skipped++;return;}
-      if(parsed[id]){done[id]=1;added++;}
+      if(parsed[id]){setItem(id,1);added++;}
     });
-    persist();syncChecks();refresh(true);noteChange();
+    persistItems();syncChecks();refresh(true);noteChange();
     closeIO();
     toast("Imported "+added+" item"+(added===1?"":"s")+(skipped?", skipped "+skipped+" unrecognised":"")+".");
   }
@@ -1060,12 +1093,132 @@ function computeStats(){
   return {doneCount:doneCount,totalTasks:TOTAL,hoursDone:hoursDone,totalHours:TOTAL_HOURS,lessonsDone:lessonsDone,lessonsTotal:LESSONS,phaseStats:phaseStats};
 }
 
+/* ================================================================== */
+/* Sync: local-first, debounced push, pull + per-item merge            */
+/* ================================================================== */
+var SYNC_DEBOUNCE_MS=800;
+var SYNC_BACKOFF_MAX_MS=60000;
+var syncTimer=null,syncBackoffMs=2000;
+var syncInFlight=null,syncDirty=false;
+var localGen=0,savedGen=-1;
+var syncState="idle";
+var hasPulledThisSession=false;
+
+function setSyncState(s){syncState=s;updateSyncUI();}
+
+function mergeItems(remoteItems){
+  var changed=false;
+  Object.keys(remoteItems||{}).forEach(function(id){
+    var r=remoteItems[id],l=items[id];
+    if(r&&(!l||r[1]>l[1])){items[id]=r;changed=true;}
+  });
+  return changed;
+}
+
+function runSync(){
+  var client=window.APP_AUTH_CLIENT;
+  if(!client){return Promise.resolve();}
+  if(syncInFlight){localGen++;return syncInFlight;}
+  if(navigator.onLine===false){setSyncState("offline");return Promise.resolve();}
+  var startGen=localGen;
+  setSyncState("saving");
+  var payload={v:1,items:items,meta:{startDate:meta.startDate||null}};
+  syncInFlight=client.auth.getSession().then(function(res){
+    var session=res&&res.data&&res.data.session,uid=session&&session.user&&session.user.id;
+    if(!uid){throw new Error("not signed in");}
+    return client.from("progress").upsert({user_id:uid,data:payload,updated_at:new Date().toISOString()},{onConflict:"user_id"});
+  }).then(function(res){
+    if(res&&res.error){throw res.error;}
+    syncBackoffMs=2000;
+    savedGen=startGen;
+    if(localGen===startGen){syncDirty=false;}
+    meta.lastSavedAt=Date.now();persistMeta();
+    setSyncState("saved");
+    syncInFlight=null;
+    if(localGen!==startGen){scheduleSync();}
+  }).catch(function(){
+    syncInFlight=null;
+    setSyncState("error");
+    scheduleRetry();
+  });
+  return syncInFlight;
+}
+function scheduleSync(){
+  if(!window.APP_AUTH_CLIENT){return;}
+  localGen++;syncDirty=true;
+  setSyncState("saving");
+  clearTimeout(syncTimer);
+  syncTimer=setTimeout(runSync,SYNC_DEBOUNCE_MS);
+}
+function scheduleRetry(){
+  clearTimeout(syncTimer);
+  syncTimer=setTimeout(runSync,syncBackoffMs);
+  syncBackoffMs=Math.min(syncBackoffMs*2,SYNC_BACKOFF_MAX_MS);
+}
+function pullAndMerge(){
+  var client=window.APP_AUTH_CLIENT;
+  if(!client){return Promise.resolve();}
+  return client.auth.getSession().then(function(res){
+    var session=res&&res.data&&res.data.session,uid=session&&session.user&&session.user.id;
+    if(!uid){return;}
+    return client.from("progress").select("data,updated_at").eq("user_id",uid).maybeSingle().then(function(res2){
+      if(res2&&res2.error){throw res2.error;}
+      var remote=res2&&res2.data,remoteItems=remote&&remote.data&&remote.data.items;
+      if(remoteItems&&Object.keys(remoteItems).length){
+        mergeItems(remoteItems);
+        if(remote.data.meta&&remote.data.meta.startDate&&!meta.startDate){meta.startDate=remote.data.meta.startDate;persistMeta();}
+        rebuildDone();persistItems();syncChecks();refresh(true);
+      }
+      clearTimeout(syncTimer);
+      return runSync();
+    });
+  }).catch(function(){
+    setSyncState("error");
+  });
+}
+
+function guardSignOut(onProceed){
+  function decide(){
+    if(!syncDirty&&syncState!=="error"&&syncState!=="offline"){onProceed();return;}
+    openSyncWarn(onProceed);
+  }
+  if(syncInFlight){
+    toast("Finishing save before sign out…");
+    Promise.race([syncInFlight.catch(function(){}),new Promise(function(res){setTimeout(res,8000);})]).then(decide);
+  }else{
+    decide();
+  }
+}
+function openSyncWarn(onProceed){
+  var dlg=$("#syncWarn"),body=$("#syncWarnBody"),exportBtn=$("#syncWarnExport"),cancelBtn=$("#syncWarnCancel"),proceedBtn=$("#syncWarnProceed");
+  body.textContent=syncState==="error"?
+    "Your last save to the cloud failed. Signing out now could lose that change on this device if something happens to it before you sign back in.":
+    "Your latest change has not finished saving to the cloud yet. Signing out now could lose it on this device if something happens to it before you sign back in.";
+  dlg.hidden=false;
+  proceedBtn.focus();
+  function onKey(e){if(e.key==="Escape"){close();return;}trapTab(e,dlg);}
+  function close(){dlg.hidden=true;document.removeEventListener("keydown",onKey);}
+  document.addEventListener("keydown",onKey);
+  exportBtn.onclick=function(){close();$("#exportProgress").click();};
+  cancelBtn.onclick=function(){close();};
+  proceedBtn.onclick=function(){close();onProceed();};
+}
+window.APP_SYNC={guardSignOut:guardSignOut};
+
 function syncStatus(){
-  /* The sync layer (uploading progress to Supabase) does not exist yet,
-     so every state here is "local only" from the syncing point of view. */
-  var text="Saved on this device";
-  if(meta.lastChangeAt){text+=" · "+fmtIST(meta.lastChangeAt);}
-  return {dot:"local",text:text};
+  var client=window.APP_AUTH_CLIENT;
+  if(!client){
+    var text="Saved on this device";
+    if(meta.lastChangeAt){text+=" · "+fmtIST(meta.lastChangeAt);}
+    return {dot:"local",text:text};
+  }
+  if(syncState==="saving"){return {dot:"saving",text:"Saving…"};}
+  if(syncState==="offline"){return {dot:"offline",text:"Offline · saved on this device"};}
+  if(syncState==="error"){return {dot:"error",text:"Could not save to the cloud · retrying"};}
+  if(meta.lastSavedAt){return {dot:"saved",text:"Saved "+fmtIST(meta.lastSavedAt)};}
+  var fallback="Saved on this device";
+  if(meta.lastChangeAt){fallback+=" · "+fmtIST(meta.lastChangeAt);}
+  return {dot:"local",text:fallback};
 }
 
 function updateSyncUI(){
@@ -1209,12 +1362,22 @@ function bindInsights(){
   });
   menuExport.addEventListener("click",function(){closeAccountMenu();$("#exportProgress").click();});
   menuImport.addEventListener("click",function(){closeAccountMenu();$("#importProgress").click();});
-  menuSignOut.addEventListener("click",function(){closeAccountMenu();$("#signOut").click();});
+  menuSignOut.addEventListener("click",function(){
+    closeAccountMenu();
+    guardSignOut(function(){if(window.APP_AUTH_SIGNOUT){window.APP_AUTH_SIGNOUT();}else{$("#signOut").click();}});
+  });
   menuClearDevice.addEventListener("click",function(){
     closeAccountMenu();
-    try{window.localStorage.removeItem(KEY);window.localStorage.removeItem(META_KEY);}catch(e){}
-    done={};meta={};persist();persistMeta();syncChecks();prevPhase={};prevTask={};refresh(true);updateSyncUI();
-    $("#signOut").click();
+    guardSignOut(function(){
+      try{
+        window.localStorage.removeItem(KEY_V2);
+        window.localStorage.removeItem(KEY_V3);
+        window.localStorage.removeItem(META_KEY);
+      }catch(e){}
+      items={};meta={};rebuildDone();persistItems();persistMeta();syncChecks();prevPhase={};prevTask={};refresh(true);
+      syncDirty=false;clearTimeout(syncTimer);setSyncState("idle");
+      if(window.APP_AUTH_SIGNOUT){window.APP_AUTH_SIGNOUT();}else{$("#signOut").click();}
+    });
   });
 
   var authClient=window.APP_AUTH_CLIENT;
@@ -1227,13 +1390,18 @@ function bindInsights(){
         var email=(session.user&&session.user.email)||"";
         accountInitial.textContent=email?email.charAt(0).toUpperCase():"?";
         accountEmail.textContent=email;
+        if(!hasPulledThisSession){hasPulledThisSession=true;pullAndMerge();}
       }else{
         closeAccountMenu();
+        hasPulledThisSession=false;
       }
       updateSyncUI();
     };
     authClient.auth.getSession().then(function(res){applySession(res&&res.data&&res.data.session);}).catch(function(){accountWrap.hidden=true;});
     authClient.auth.onAuthStateChange(function(event,session){applySession(session);});
+    document.addEventListener("visibilitychange",function(){if(!document.hidden){pullAndMerge();}});
+    window.addEventListener("online",function(){pullAndMerge();});
+    window.addEventListener("offline",function(){setSyncState("offline");});
   }
 }
 
@@ -1241,8 +1409,9 @@ function bind(){
   document.addEventListener("change",function(e){
     var t=e.target; if(!t.matches) return;
     var id=t.getAttribute("data-task")||t.getAttribute("data-lesson"); if(!id) return;
-    if(t.checked){done[id]=1;burst(t.nextElementSibling,t.closest(".phase")?t.closest(".phase").getAttribute("data-layer"):"gold",22);}else{delete done[id];}
-    persist();refresh(false);noteChange();
+    setItem(id,t.checked);
+    if(t.checked){burst(t.nextElementSibling,t.closest(".phase")?t.closest(".phase").getAttribute("data-layer"):"gold",22);}
+    persistItems();refresh(false);noteChange();
   });
   document.addEventListener("click",function(e){
     var tg=e.target; if(!tg.closest) return;
@@ -1264,7 +1433,8 @@ function bind(){
       rt=setTimeout(function(){rb.removeAttribute("data-arm");rb.textContent="Reset progress";},4000);return;
     }
     clearTimeout(rt);rb.removeAttribute("data-arm");rb.textContent="Reset progress";
-    done={};persist();syncChecks();prevPhase={};prevTask={};refresh(true);noteChange();toast("Progress cleared.");
+    Object.keys(items).forEach(function(id){if(items[id][0]){setItem(id,0);}});
+    persistItems();syncChecks();prevPhase={};prevTask={};refresh(true);noteChange();toast("Progress cleared.");
   });
   bindIO();
   bindInsights();
