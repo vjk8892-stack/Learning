@@ -51,12 +51,79 @@ var P1={
 
 var P3={
  id:"p3",n:3,short:"Warehouse and migration",name:"Warehouse, on-prem sources and migration: Build 03",layer:"silver",layerName:"Silver layer",
- weeks:[6,7],hours:18,cost:"Free trial",tone:"free",needs:"Phases 1 and 2",
- goal:"Move data from the world you know into Fabric, and prove you can migrate a legacy estate rather than only build greenfield. The case study you write here is the strongest single item in your portfolio.",
+ weeks:[6,7],hours:18,cost:"Free trial",tone:"free",needs:"Phases 1 and 2",lessons:true,
+ goal:"Move data from the world you know into Fabric, and prove you can migrate a legacy estate rather than only build greenfield. The case study you write here is the strongest single item in your portfolio. Some steps here need real infrastructure a sandbox cannot run headlessly (a gateway, an on-prem SQL Server, a live Fabric workspace); those lessons walk through the platform steps in prose. Where a lesson can be demonstrated with synthetic data and Spark SQL alone, it runs the same way phase 2's lessons do.",
  tasks:[
-  {id:"p3-a",t:"Install the on-premises data gateway",d:"Point it at a local SQL Server. The free Developer edition works as your on-prem source."},
-  {id:"p3-b",t:"Build 03: finance data from on-prem SQL",d:"Copy activity into a Fabric Warehouse, a Data Activator alert on a threshold, and a report on top. About 6 to 9 hours."},
-  {id:"p3-c",t:"Write your Lakehouse versus Warehouse rule",d:"One paragraph, with one real example of each."},
+  {id:"p3-a",t:"Install the on-premises data gateway",d:"Point it at a local SQL Server. The free Developer edition works as your on-prem source.",subs:[
+   {id:"p3-a-1",t:"Set up the on-premises data gateway",mins:20,verified:{date:"2026-09-25",level:"unverified",note:"Written from general Fabric/ADF gateway architecture knowledge. Not checked against current docs this session, this environment cannot reach learn.microsoft.com. Confirm menu paths against the current docs before relying on them."},
+    learn:["SSIS's connection managers and your on-prem SQL Server both assume a network your cloud service cannot reach directly. The on-premises data gateway is a Windows service you install locally that opens an outbound-only connection to the cloud, so nothing needs an inbound firewall rule. ADF, Fabric pipelines and Power BI can share one gateway.",
+           "The gateway is tied to the account that installs it and to one tenant. Install it on a machine that stays on, not your laptop, if scheduled refreshes need to run reliably."],
+    try:[{p:"Install SQL Server Developer edition locally if you do not already have an instance, and create a small database with one table to point at."},
+         {p:"Download the on-premises data gateway, install it, and sign in with the same account you use for Fabric. Give it a name you will recognise later."},
+         {p:"In the Fabric portal, go to Manage connections and gateways, add a new connection, choose SQL Server, point it at your local instance, and select the gateway you just installed."}],
+    expect:"The connection shows as connected, a green status, once the gateway service is running and the SQL Server credentials are accepted.",
+    brk:"Stop the gateway's Windows service (services.msc, find On-premises data gateway) and test the connection again in the portal. It fails immediately, which is the tell for a stopped gateway rather than a credentials problem.",
+    prove:["You can explain in one sentence why the gateway only needs an outbound connection.","Your test connection in the Fabric portal shows connected."],
+    watch:"One gateway can serve many connections and many workspaces. Most teams install one gateway per site or per always-on server, not one per project.",
+    quiz:[["Why does the gateway only need an outbound connection?","It calls out to the cloud service and holds the connection open, so nothing needs to accept unsolicited inbound traffic through your firewall."]]}
+  ]},
+  {id:"p3-b",t:"Build 03: finance data from on-prem SQL",d:"Copy activity into a Fabric Warehouse, a Data Activator alert on a threshold, and a report on top. About 6 to 9 hours.",subs:[
+   {id:"p3-b-1",t:"A Warehouse table behaves like SQL Server, on Delta underneath",mins:20,verified:{date:"2026-09-25",level:"run",note:"Code runs (CI). The 810000 daily total for 2026-09-02 is printed by the try cell itself; the CI assertion checks the final state after the break step, 1620000 once the append has doubled it."},
+    learn:["A Fabric Warehouse looks and behaves like SQL Server: T-SQL, stored procedures, familiar DDL. Under the hood it still stores data as Delta tables in OneLake, the same format your Lakehouse notebooks read and write, which is why a Lakehouse and a Warehouse can share the same files through shortcuts.",
+           "Build 03 copies your on-prem finance table into a Warehouse with a Copy activity, then a Data Activator alert watches a daily total for a threshold breach. This lesson demonstrates the pattern with synthetic data. The platform screens are in the next lesson."],
+    try:[{lang:"python",label:"Python, either platform",code:R`from pyspark.sql import functions as F
+
+rows = [
+  (1, "2026-09-01", 145000.0),
+  (2, "2026-09-01",  62000.0),
+  (3, "2026-09-02", 810000.0),   # breach: over the 500000 threshold
+  (4, "2026-09-03",  95000.0),
+  (5, "2026-09-03", 120000.0),
+]
+cols = ["invoice_id", "invoice_date", "amount"]
+finance = spark.createDataFrame(rows, cols).withColumn("invoice_date", F.to_date("invoice_date"))
+finance.write.mode("overwrite").format("delta").saveAsTable("finance_raw")
+
+spark.sql("""
+  SELECT invoice_date, SUM(amount) AS daily_total
+  FROM finance_raw
+  GROUP BY invoice_date
+  ORDER BY invoice_date
+""").show()`}],
+    expect:"Three rows, one per date. 2026-09-02 shows a daily_total of 810000, the row a 500000 threshold alert would catch.",
+    brk:[{p:"Run the same write a second time with append instead of overwrite, then rerun the aggregate."},
+         {lang:"python",label:"Python",code:R`finance.write.mode("append").format("delta").saveAsTable("finance_raw")
+spark.sql("""
+  SELECT invoice_date, SUM(amount) AS daily_total
+  FROM finance_raw
+  GROUP BY invoice_date
+  ORDER BY invoice_date
+""").show()   # every daily_total has doubled`},
+         {p:"A real Copy activity into a Warehouse needs the same idempotency discipline as any Bronze load: truncate and load, a watermark, or a merge key. Task p3-e covers this properly."}],
+    prove:["You can say which SQL Server concept a Warehouse keeps (T-SQL, stored procedures) and which storage concept it shares with a Lakehouse (Delta files in OneLake).","You can predict the daily_total for 2026-09-02 before you run the query."],
+    quiz:[["A Copy activity into a Fabric Warehouse and a Lakehouse notebook read the same table through a shortcut. What format are both actually reading?","Delta: Parquet files plus a transaction log. The Warehouse's T-SQL surface and the Lakehouse's Spark surface are two ways to read and write the same underlying Delta files."]]},
+   {id:"p3-b-2",t:"Wire up the Copy activity and the Data Activator alert",mins:20,verified:{date:"2026-09-25",level:"unverified",note:"Written from general Fabric pipeline/Data Activator architecture knowledge. Not checked against current docs this session, this environment cannot reach learn.microsoft.com."},
+    learn:["The building blocks are a pipeline Copy activity, source your on-prem SQL Server through the gateway, sink a table in your Warehouse, and a Data Activator alert that watches a value and fires an action when it crosses a threshold."],
+    try:[{p:"In a Fabric pipeline, add a Copy activity. Set the source to your on-prem SQL Server connection through the gateway, and the sink to a new table in your Warehouse."},
+         {p:"Run the pipeline once and confirm the row count in the Warehouse table matches the source, with a T-SQL SELECT COUNT(*)."},
+         {p:"Create a Data Activator item, point it at the daily total from the Warehouse table or a Power BI visual built on it, and set an alert to fire above your threshold. Trigger it once with a test value to confirm the alert fires."}],
+    expect:"The Warehouse table's row count matches the source table, and the Data Activator alert fires when the watched value crosses your threshold.",
+    brk:"Set the threshold below every row in your data, rerun, and confirm the alert fires immediately instead of waiting for a real breach. That is a quick way to prove the wiring works before you trust it to watch real data.",
+    prove:["Your pipeline run history shows a successful Copy activity.","You triggered the Data Activator alert on purpose and saw it fire."],
+    watch:"A Copy activity that always truncates and reloads the whole table is simple but does not scale. Task p3-e adds incremental loading once this pattern works end to end."}
+  ]},
+  {id:"p3-c",t:"Write your Lakehouse versus Warehouse rule",d:"One paragraph, with one real example of each.",subs:[
+   {id:"p3-c-1",t:"Decide: Lakehouse or Warehouse",mins:15,verified:{date:"2026-09-25",level:"run",note:"Code runs and asserts correctly (CI): the T-SQL-style read returns the same three daily totals as the previous lesson."},
+    learn:["Both store Delta files in OneLake, and both can be queried from the other through shortcuts, so the real choice is about interface and audience, not storage. Warehouse: T-SQL, stored procedures, multi-table transactions, and the surface your SQL Server-literate stakeholders already trust for governed reporting. Lakehouse: Spark notebooks, semi-structured data, ML libraries, and the surface your own migration and transformation code runs on."],
+    try:[{lang:"sql",label:"SQL, Warehouse-style read",code:R`SELECT invoice_date, SUM(amount) AS daily_total
+FROM finance_raw
+GROUP BY invoice_date
+ORDER BY invoice_date;`},
+         {p:"The same finance_raw table, queried with T-SQL-style SQL as a Warehouse consumer would, versus the DataFrame code from the previous lesson as a Lakehouse notebook would. Same files, same answer, different audience."}],
+    expect:"The same daily totals as the previous lesson, doubled if you kept the append from its break step. Proof that the interface changed, not the data.",
+    brk:"Picture a stored procedure that validates and transactionally updates several finance tables together, then picture the same logic as a notebook cell using DataFrame writes. The Warehouse version maps far more directly onto T-SQL habits you already have.",
+    prove:["Write one paragraph stating your rule for choosing Lakehouse versus Warehouse, with one real example of each from your own experience or this path's builds. Save it in this lesson's note."]}
+  ]},
   {id:"p3-d",t:"Build a metadata-driven pipeline",d:"A control table lists the tables, and one pipeline with Lookup and ForEach loads them all."},
   {id:"p3-e",t:"Add incremental loading",d:"Use a watermark column, then handle deletes, which a watermark alone will not catch. Try a Copy job with incremental settings as the low-code alternative."},
   {id:"p3-f",t:"Try the ADF to Fabric migration assistant (Preview)",d:"On a sample ADF factory, run Migrate to Fabric (Preview) for a readiness scan, or mount the factory in a Fabric workspace and run it side by side. Note what it flags: self-hosted integration runtimes become gateways, mapping data flows need rebuilding, and global parameters become variable libraries. Preview tools change, so check the current docs."},

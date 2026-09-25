@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-Runs every phase-2 (Spark and Delta) lesson's actual shipped code, in
-dependency (source) order, in one local SparkSession with Delta and a
-temp warehouse — exactly the code tools/extract-lessons.js pulled out of
-js/app.js, not a hand-copied re-implementation of it.
+Runs every phase-2 (Spark and Delta) and phase-3 (Warehouse and
+migration) lesson's actual shipped code, in dependency (source) order,
+in one local SparkSession with Delta and a temp warehouse — exactly the
+code tools/extract-lessons.js pulled out of js/app.js, not a hand-copied
+re-implementation of it.
 
 A handful of lessons need something other than "just run the try[] then
 brk[] code cells in order":
@@ -21,7 +22,7 @@ brk[] code cells in order":
 Both are handled in CUSTOM_HANDLERS below, still executing the lesson's
 own extracted code text.
 
-Usage: python3 tools/run-lessons.py [--extracted tools/.extracted/p2.json]
+Usage: python3 tools/run-lessons.py [--extracted tools/.extracted/lessons.json]
                                      [--report tools/.extracted/lesson-report.json]
 Exit code 0 if every lesson ran (or was deliberately skipped) and every
 registered check passed; 1 otherwise.
@@ -246,7 +247,7 @@ def build_spark(warehouse_dir):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--extracted", default=str(REPO_ROOT / "tools" / ".extracted" / "p2.json"))
+    parser.add_argument("--extracted", default=str(REPO_ROOT / "tools" / ".extracted" / "lessons.json"))
     parser.add_argument("--report", default=str(REPO_ROOT / "tools" / ".extracted" / "lesson-report.json"))
     args = parser.parse_args()
 
@@ -258,10 +259,14 @@ def main():
 
     lessons_by_id = {}
     order = []
-    for task in data["P2"]["tasks"]:
-        for lesson in task.get("subs", []):
-            lessons_by_id[lesson["id"]] = lesson
-            order.append(lesson["id"])
+    for phase_key in ("P2", "P3"):
+        phase = data.get(phase_key)
+        if not phase:
+            continue
+        for task in phase["tasks"]:
+            for lesson in task.get("subs", []):
+                lessons_by_id[lesson["id"]] = lesson
+                order.append(lesson["id"])
 
     warehouse_dir = Path(tempfile.mkdtemp(prefix="learning-lessons-warehouse-"))
     print(f"Temp warehouse: {warehouse_dir}", file=sys.stderr)

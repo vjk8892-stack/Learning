@@ -1,7 +1,8 @@
 """
-Assertion functions for the phase-2 (Spark and Delta) lesson code, run by
-tools/run-lessons.py after it executes each lesson's actual shipped code
-(pulled from js/app.js by tools/extract-lessons.js).
+Assertion functions for the phase-2 (Spark and Delta) and phase-3
+(Warehouse and migration) lesson code, run by tools/run-lessons.py after
+it executes each lesson's actual shipped code (pulled from js/app.js by
+tools/extract-lessons.js).
 
 Each function is registered in CHECKS under its lesson id and takes
 (spark, ctx). ctx is the shared run context tools/run-lessons.py builds:
@@ -260,3 +261,34 @@ def _check_plan(spark, ctx):
     filtered = spark.table("sales_silver").filter("amount > 1000").select("order_id", "amount")
     plan_no_shuffle = capture_explain(filtered)
     assert "Exchange" not in plan_no_shuffle, "a plain filter+select should not trigger a shuffle (Exchange)"
+
+
+@check("p3-b-1")
+def _check_p3b1(spark, ctx):
+    # run_lesson_generic runs try[] then brk[] back-to-back before this check
+    # sees any state, so only the final (post-append) state is observable
+    # here. The pre-append values (207000/810000/215000) are confirmed
+    # separately: the try cell's own .show() printed them to the real CI/
+    # local run log before the append happened, matching this lesson's
+    # "expect" text.
+    n_after = _row_count(spark, "finance_raw")
+    assert n_after == 10, f"expected 10 rows in finance_raw after the duplicate append, got {n_after}"
+    rows_after = {
+        r["invoice_date"].isoformat(): r["daily_total"]
+        for r in spark.sql(
+            "SELECT invoice_date, SUM(amount) AS daily_total FROM finance_raw GROUP BY invoice_date"
+        ).collect()
+    }
+    assert len(rows_after) == 3, f"expected 3 distinct invoice dates, got {len(rows_after)}"
+    assert rows_after["2026-09-02"] == 1620000.0, f"2026-09-02 should double to 1620000.0 after the append, got {rows_after['2026-09-02']}"
+
+
+@check("p3-c-1")
+def _check_p3c1(spark, ctx):
+    # Runs after p3-b-1 in source order, so finance_raw is still in the
+    # doubled (10-row) state left by that lesson's brk step -- this lesson's
+    # own "expect" text says as much.
+    row = spark.sql(
+        "SELECT SUM(amount) AS daily_total FROM finance_raw WHERE invoice_date = '2026-09-02'"
+    ).collect()[0]
+    assert row["daily_total"] == 1620000.0, f"expected the T-SQL-style read to match p3-b-1's post-append total, got {row['daily_total']}"

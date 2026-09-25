@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /*
- * Extracts the phase-2 lesson content data (P2) out of js/app.js as JSON,
- * so tools/run-lessons.py can execute the REAL shipped lesson code rather
- * than a hand-copied duplicate of it.
+ * Extracts the phase-2 and phase-3 lesson content data (P2, P3) out of
+ * js/app.js as JSON, so tools/run-lessons.py can execute the REAL shipped
+ * lesson code rather than a hand-copied duplicate of it.
  *
  * How: js/app.js is one big IIFE. Its first section (helpers, then the
  * content-data literals P0..P5/STRETCH/ROSETTA/FRESH/COSTS, ending at
@@ -71,28 +71,42 @@ function main() {
   if (!Array.isArray(context.P2.tasks) || context.P2.tasks.length === 0) {
     throw new Error("P2.tasks is missing or empty after extraction.");
   }
-  let lessonCount = 0;
-  for (const task of context.P2.tasks) {
-    if (Array.isArray(task.subs)) lessonCount += task.subs.length;
+  function countLessons(phase) {
+    let n = 0;
+    for (const task of phase.tasks) {
+      if (Array.isArray(task.subs)) n += task.subs.length;
+    }
+    return n;
   }
-  if (lessonCount === 0) {
-    throw new Error("No lessons (task.subs) found after extraction.");
+  const p2LessonCount = countLessons(context.P2);
+  if (p2LessonCount === 0) {
+    throw new Error("No lessons (task.subs) found in P2 after extraction.");
   }
 
   const result = {
     extractedAt: new Date().toISOString(),
     sourceFile: path.relative(process.cwd(), appJsPath),
-    lessonCount: lessonCount,
+    lessonCount: p2LessonCount,
     taskCount: context.P2.tasks.length,
     P2: context.P2,
   };
+
+  // P3 gains lessons incrementally (phase 3, three commits); only some
+  // tasks have subs at any point, which is fine — no lessonCount>0
+  // requirement, just that whatever is there parses as valid data.
+  if (context.P3 && typeof context.P3 === "object" && Array.isArray(context.P3.tasks)) {
+    result.P3 = context.P3;
+    result.p3LessonCount = countLessons(context.P3);
+  }
 
   const json = JSON.stringify(result, null, 2);
   if (outPath) {
     fs.mkdirSync(path.dirname(outPath), { recursive: true });
     fs.writeFileSync(outPath, json);
     console.error(
-      "Extracted " + lessonCount + " lessons across " + context.P2.tasks.length + " tasks to " + outPath
+      "Extracted " + p2LessonCount + " P2 lessons across " + context.P2.tasks.length + " tasks" +
+        (result.P3 ? ", " + result.p3LessonCount + " P3 lessons across " + context.P3.tasks.length + " tasks" : "") +
+        " to " + outPath
     );
   } else {
     process.stdout.write(json);
