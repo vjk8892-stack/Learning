@@ -124,9 +124,107 @@ ORDER BY invoice_date;`},
     brk:"Picture a stored procedure that validates and transactionally updates several finance tables together, then picture the same logic as a notebook cell using DataFrame writes. The Warehouse version maps far more directly onto T-SQL habits you already have.",
     prove:["Write one paragraph stating your rule for choosing Lakehouse versus Warehouse, with one real example of each from your own experience or this path's builds. Save it in this lesson's note."]}
   ]},
-  {id:"p3-d",t:"Build a metadata-driven pipeline",d:"A control table lists the tables, and one pipeline with Lookup and ForEach loads them all."},
-  {id:"p3-e",t:"Add incremental loading",d:"Use a watermark column, then handle deletes, which a watermark alone will not catch. Try a Copy job with incremental settings as the low-code alternative."},
-  {id:"p3-f",t:"Try the ADF to Fabric migration assistant (Preview)",d:"On a sample ADF factory, run Migrate to Fabric (Preview) for a readiness scan, or mount the factory in a Fabric workspace and run it side by side. Note what it flags: self-hosted integration runtimes become gateways, mapping data flows need rebuilding, and global parameters become variable libraries. Preview tools change, so check the current docs."},
+  {id:"p3-d",t:"Build a metadata-driven pipeline",d:"A control table lists the tables, and one pipeline with Lookup and ForEach loads them all.",subs:[
+   {id:"p3-d-1",t:"A control table turns N pipelines into one",mins:20,verified:{date:"2026-09-25",level:"run",note:"Code runs and asserts correctly (CI): three tables load from one control table, and a bad control row is reported rather than silently dropped or allowed to kill the run."},
+    learn:["A metadata-driven pipeline reads a control table instead of hard-coding one activity per source table. A Lookup activity fetches the control table's rows, then a ForEach activity iterates them and runs the same Copy or dataflow logic once per row, using that row's own values, source table, target table, watermark column, as parameters. One Copy activity per table does not scale past a handful of tables."],
+    try:[{lang:"python",label:"Python, either platform",code:R`from pyspark.sql import functions as F
+
+# Three small synthetic "on-prem" source tables, standing in for real ones.
+sources = {
+  "customers": spark.createDataFrame([("C001", "Bengaluru"), ("C002", "Mysuru")], ["customer_id", "city"]),
+  "products":  spark.createDataFrame([("P001", "Laptop"), ("P002", "Mouse")], ["product_id", "name"]),
+  "regions":   spark.createDataFrame([("R1", "South"), ("R2", "North")], ["region_id", "name"]),
+}
+
+control = spark.createDataFrame(
+  [("customers", "dim_customers"), ("products", "dim_products"), ("regions", "dim_regions")],
+  ["source_name", "target_table"])
+control.write.mode("overwrite").format("delta").saveAsTable("pipeline_control")
+
+# The Lookup activity: read the control table's rows.
+rows = spark.table("pipeline_control").collect()
+
+# The ForEach activity: run the same load logic once per row.
+loaded = []
+for row in rows:
+    sources[row["source_name"]].write.mode("overwrite").format("delta").saveAsTable(row["target_table"])
+    loaded.append(row["target_table"])
+
+print(loaded)`}],
+    expect:"['dim_customers', 'dim_products', 'dim_regions'], and three new Delta tables, each holding its source's rows.",
+    brk:[{p:"Add a control-table row naming a source that does not exist, then rerun the loop with error handling around each row instead of letting one bad row kill the whole pipeline."},
+         {lang:"python",label:"Python",code:R`bad_row = spark.createDataFrame([("suppliers", "dim_suppliers")], ["source_name", "target_table"])
+control.union(bad_row).write.mode("overwrite").format("delta").saveAsTable("pipeline_control")
+
+errors = []
+for row in spark.table("pipeline_control").collect():
+    try:
+        sources[row["source_name"]].write.mode("overwrite").format("delta").saveAsTable(row["target_table"])
+    except KeyError:
+        errors.append(row["source_name"])
+
+print("Failed sources:", errors)`},
+         {p:"A real pipeline should behave the same way: report the one bad row and keep going, rather than letting a single typo in the control table stop every other table loading."}],
+    prove:["You can explain what a Lookup activity and a ForEach activity each do in this pattern.","Your run loaded three tables from one control table, and reported, rather than silently dropped or crashed on, the row naming a source that does not exist."],
+    quiz:[["Why is a control table safer than one hard-coded Copy activity per table?","Adding a table becomes a new row, not a new pipeline activity. The loading logic stays in one place, which is easier to test, fix and extend."]]}
+  ]},
+  {id:"p3-e",t:"Add incremental loading",d:"Use a watermark column, then handle deletes, which a watermark alone will not catch. Try a Copy job with incremental settings as the low-code alternative.",subs:[
+   {id:"p3-e-1",t:"Incremental loads with a watermark column",mins:20,verified:{date:"2026-09-25",level:"run",note:"Code runs and asserts correctly (CI): a full load then an incremental append reach 3 rows, and the later-deleted row is confirmed still present (orphaned) in the target afterwards."},
+    learn:["A full reload rereads every row every time, which does not scale. A watermark column, usually a last-modified timestamp, lets you pull only rows changed since the last run. Store the watermark you have already loaded, then filter the source on rows newer than it."],
+    try:[{p:"Simulate two pipeline runs on different days. Day 1 is a full load; day 1's own watermark, the latest modified_at it loaded, is what day 2's run filters on."},
+         {lang:"python",label:"Python, either platform",code:R`from pyspark.sql import functions as F
+
+day1 = (spark.createDataFrame([
+    (1, "C001", 500.0, "2026-09-01T09:00:00"),
+    (2, "C002", 300.0, "2026-09-01T10:00:00"),
+  ], ["order_id", "customer_id", "amount", "modified_at"])
+  .withColumn("modified_at", F.to_timestamp("modified_at")))
+
+# Run 1: a full load. The watermark to store is the latest modified_at loaded.
+day1.write.mode("overwrite").format("delta").saveAsTable("orders_incremental")
+watermark = "2026-09-01T10:00:00"
+
+# Day 2 source state: order 3 is new; orders 1 and 2 are unchanged.
+day2 = day1.union(spark.createDataFrame(
+  [(3, "C003", 800.0, "2026-09-02T08:00:00")],
+  ["order_id", "customer_id", "amount", "modified_at"]).withColumn("modified_at", F.to_timestamp("modified_at")))
+
+# Run 2: pull only rows changed since the stored watermark, and append them.
+incremental = day2.filter(F.col("modified_at") > F.to_timestamp(F.lit(watermark)))
+incremental.write.mode("append").format("delta").saveAsTable("orders_incremental")
+print(spark.table("orders_incremental").count())`}],
+    expect:"A count of 3. Only order 3, modified after the stored watermark, was appended; orders 1 and 2 were correctly left alone on run 2.",
+    brk:[{p:"Now simulate order 1 being hard-deleted at the source on day 3, and pull incrementally again from a later watermark."},
+         {lang:"python",label:"Python",code:R`day3 = day2.filter("order_id != 1")   # order 1 deleted at the source
+
+later_watermark = "2026-09-02T08:00:00"
+next_incremental = day3.filter(F.col("modified_at") > F.to_timestamp(F.lit(later_watermark)))
+print(next_incremental.count())   # 0: the delete produced no new row for the watermark to catch
+
+print(spark.table("orders_incremental").filter("order_id = 1").count())   # 1: still there, orphaned`},
+         {p:"Nothing about a DELETE bumps a modified_at value, since the row is simply gone. A watermark can only see rows that still exist and changed. It can never see one that vanished."}],
+    prove:["You can say why a watermark alone misses deletes.","Your run 2 correctly appended only the one changed row, and you found the orphaned row a plain watermark load leaves behind after a source delete."],
+    watch:"A periodic full reconciliation pass, comparing source and target keys, or a soft-delete flag at the source, are the two common fixes. A low-code incremental-copy tool has the same blind spot, since it is the same pattern under a simpler interface."},
+   {id:"p3-e-2",t:"The low-code alternative: a Copy job with incremental copy",mins:15,verified:{date:"2026-09-25",level:"unverified",note:"Written from general Fabric Copy job architecture knowledge. Not checked against current docs this session, this environment cannot reach learn.microsoft.com."},
+    learn:["A Fabric Copy job is a simpler item than a full pipeline: point it at a source and destination, turn on incremental copy, and it tracks the watermark column between runs for you. It still cannot see deletes, for the same reason the hand-written watermark filter in the previous lesson could not."],
+    try:[{p:"Create a Copy job item, set the source to your on-prem SQL Server table through the gateway, choose incremental copy, and pick modified_at as the watermark column."},
+         {p:"Run it twice with no source changes in between. The second run should copy zero new rows."},
+         {p:"Insert one new row at the source with a later modified_at, then run the Copy job again. Only that row should copy."}],
+    expect:"The second run, with no source changes, copies zero rows. After the insert, only the one new row copies.",
+    brk:"Delete a row at the source instead of inserting one, then run the Copy job again. Nothing changes in the destination. It is the same watermark blind spot from the previous lesson, now hit through the low-code tool instead of hand-written code.",
+    prove:["Your Copy job's second run genuinely copied zero rows.","You reproduced the same delete-blindness through the UI tool that you saw in code."]}
+  ]},
+  {id:"p3-f",t:"Try the ADF to Fabric migration assistant (Preview)",d:"On a sample ADF factory, run Migrate to Fabric (Preview) for a readiness scan, or mount the factory in a Fabric workspace and run it side by side. Note what it flags: self-hosted integration runtimes become gateways, mapping data flows need rebuilding, and global parameters become variable libraries. Preview tools change, so check the current docs.",subs:[
+   {id:"p3-f-1",t:"Run a readiness scan with the migration assistant (Preview)",mins:15,verified:{date:"2026-09-25",level:"unverified",note:"Preview tools change fast, and current docs were not checked this session, this environment cannot reach learn.microsoft.com. The three flagged categories are carried over from the fact already recorded in the freshness table on 24 Sep 2026, not independently reconfirmed here."},
+    learn:["Two options exist for bringing an ADF factory into Fabric: run the Migrate to Fabric (Preview) assistant for a readiness scan that lists what will convert cleanly and what needs attention, or mount the factory directly in a Fabric workspace and run pipelines side by side without converting anything yet. The second option is the safer one to try first, since nothing is changed."],
+    try:[{p:"On a sample ADF factory, never client work, open the Migrate to Fabric (Preview) assistant and run a readiness scan."},
+         {p:"Read the report. Expect flags on self-hosted integration runtimes (no Fabric equivalent, become gateways), mapping data flows (need rebuilding) and global parameters (become variable libraries)."},
+         {p:"As the alternative, mount the same factory in a Fabric workspace instead, and run one pipeline from it side by side with the original ADF version, comparing the output."}],
+    expect:"A readiness report listing at least one item in each of the three flagged categories above, or, for the mount-and-run option, matching output between the ADF and Fabric-mounted runs.",
+    brk:"Pick the one item the report flags as needing the most rework, and sketch on paper how you would rebuild it by hand. That sketch is the start of task p3-g.",
+    prove:["You can list the three kinds of thing this assistant flags and what each becomes in Fabric.","You ran either the readiness scan or the side-by-side mount, and can describe what you saw."],
+    watch:"Preview tools change fast. Confirm this still matches the current Learn documentation before you rely on any specific screen or menu name."}
+  ]},
   {id:"p3-g",t:"Migrate one SSIS package",d:"Use a public sample such as AdventureWorks, never client work. Follow inventory, classify, design, convert, validate, cut over. Fabric has no SSIS integration runtime, so either keep running packages in ADF and call them from a Fabric pipeline, or rebuild them as pipelines and notebooks. Automated converters cover only part of a real portfolio."},
   {id:"p3-h",t:"Move one SSRS report to a paginated report",d:"Bring the .rdl across and compare the output page by page."},
   {id:"p3-i",t:"Move one stored procedure to the Warehouse",d:"Call it from a pipeline stored procedure activity."}

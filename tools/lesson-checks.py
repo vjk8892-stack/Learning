@@ -292,3 +292,36 @@ def _check_p3c1(spark, ctx):
         "SELECT SUM(amount) AS daily_total FROM finance_raw WHERE invoice_date = '2026-09-02'"
     ).collect()[0]
     assert row["daily_total"] == 1620000.0, f"expected the T-SQL-style read to match p3-b-1's post-append total, got {row['daily_total']}"
+
+
+@check("p3-d-1")
+def _check_p3d1(spark, ctx):
+    for table, n in (("dim_customers", 2), ("dim_products", 2), ("dim_regions", 2)):
+        assert spark.catalog.tableExists(table), f"{table} should exist after the control-table loop"
+        got = _row_count(spark, table)
+        assert got == n, f"{table} should have {n} rows, got {got}"
+
+    loaded = set(ctx["ns"]["loaded"])
+    assert loaded == {"dim_customers", "dim_products", "dim_regions"}, f"unexpected set of loaded tables: {loaded}"
+
+    # The brk step's bad control-table row should be reported, not silently
+    # dropped and not allowed to kill the whole loop.
+    errors = ctx["ns"]["errors"]
+    assert errors == ["suppliers"], f"expected exactly one reported failure ('suppliers'), got {errors}"
+    assert not spark.catalog.tableExists("dim_suppliers"), "dim_suppliers should never have been created"
+
+
+@check("p3-e-1")
+def _check_p3e1(spark, ctx):
+    n = _row_count(spark, "orders_incremental")
+    assert n == 3, f"orders_incremental should have 3 rows after the day-1 full load plus the day-2 incremental append, got {n}"
+    ids = {r["order_id"] for r in spark.table("orders_incremental").select("order_id").collect()}
+    assert ids == {1, 2, 3}, f"expected order_ids {{1, 2, 3}}, got {ids}"
+
+    # The brk step's delete-blindness demonstration: order 1 was removed
+    # from the simulated source but is still present (orphaned) in the
+    # already-loaded target table.
+    next_incremental_count = ctx["ns"]["next_incremental"].count()
+    assert next_incremental_count == 0, f"a later incremental pull after a delete-only change should find 0 new rows, got {next_incremental_count}"
+    orphan_count = spark.table("orders_incremental").filter("order_id = 1").count()
+    assert orphan_count == 1, f"order 1 should still be present (orphaned) in orders_incremental, got {orphan_count} rows"
