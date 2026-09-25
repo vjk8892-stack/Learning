@@ -1,0 +1,41 @@
+name: "Report a weekly-check failure"
+description: "Opens a GitHub issue for a failed weekly check, or comments on the existing open one with the same title (deduplicated by title)."
+inputs:
+  title:
+    description: "Exact issue title — used as the dedup key"
+    required: true
+  body:
+    description: "Issue/comment body"
+    required: true
+runs:
+  using: composite
+  steps:
+    - uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
+      with:
+        script: |
+          const title = ${{ toJSON(inputs.title) }};
+          const body = ${{ toJSON(inputs.body) }};
+          const { data: issues } = await github.rest.issues.listForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            state: "open",
+            per_page: 100,
+          });
+          const existing = issues.find((i) => i.title === title && !i.pull_request);
+          if (existing) {
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: existing.number,
+              body: `Still failing as of ${new Date().toISOString()}.\n\n${body}`,
+            });
+            core.info(`Commented on existing issue #${existing.number}`);
+          } else {
+            const created = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+            });
+            core.info(`Opened new issue #${created.data.number}`);
+          }

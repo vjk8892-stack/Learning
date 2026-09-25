@@ -1,0 +1,45 @@
+name: Reminders
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # daily — the steps below only act on their one matching date each
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reminders-${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  reminders:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Today's date (UTC)
+        id: today
+        run: echo "date=$(date -u +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
+      # Reuses the same "open once, dedup by title" composite action
+      # weekly-checks.yml uses for failures — a reminder is really the
+      # same shape of thing (an issue that should exist exactly once).
+      - name: DP-600 outline reminder (2026-10-19)
+        if: steps.today.outputs.date == '2026-10-19'
+        uses: ./.github/actions/report-failure
+        with:
+          title: "DP-600 outline changes today: recheck phase 5 lessons and the Freshness table"
+          body: |
+            Scheduled reminder for 2026-10-19 — the new DP-600 English outline takes effect today (minor change to "query and analyze data"). Recheck phase 5's DP-600 content and the Freshness table against the current outline, then update CLAUDE.md's verified facts and data/watch.json together.
+
+      - name: Runtime / Databricks / exam outline recheck (2026-12-01)
+        if: steps.today.outputs.date == '2026-12-01'
+        uses: ./.github/actions/report-failure
+        with:
+          title: "Recheck Fabric runtime status, Databricks Free Edition limits and exam outlines"
+          body: |
+            Scheduled reminder for 2026-12-01 — recheck Fabric Runtime 2.0's default-workspace status, Databricks Free Edition's current limitations, and the DP-600/DP-700/PL-300 exam outlines, then update CLAUDE.md's verified facts and data/watch.json together.

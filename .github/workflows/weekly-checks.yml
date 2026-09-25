@@ -1,0 +1,142 @@
+name: Weekly checks
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: weekly-checks-${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  data-lockdown:
+    name: a. Data lock-down (anon key only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "20"
+      - name: Not configured yet
+        if: ${{ vars.SUPABASE_URL == '' || vars.SUPABASE_PUBLISHABLE_KEY == '' }}
+        run: echo "SUPABASE_URL and/or SUPABASE_PUBLISHABLE_KEY repository variables are not set yet — skipping. See README for how to add them."
+      - name: Check public.progress and public.notes reject the anon key
+        if: ${{ vars.SUPABASE_URL != '' && vars.SUPABASE_PUBLISHABLE_KEY != '' }}
+        run: node tools/check-data-lockdown.js "${{ vars.SUPABASE_URL }}" "${{ vars.SUPABASE_PUBLISHABLE_KEY }}"
+      - name: Report failure
+        if: failure()
+        uses: ./.github/actions/report-failure
+        with:
+          title: "[weekly-checks] Data lock-down check is failing"
+          body: |
+            `public.progress` or `public.notes` returned rows using only the publishable key — Row Level Security may not be enforcing correctly. This is a real data-exposure risk; investigate before anything else.
+
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+  site-headers:
+    name: b. Live site headers
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "20"
+      - name: Not configured yet
+        if: ${{ vars.SITE_URL == '' || vars.SUPABASE_URL == '' }}
+        run: echo "SITE_URL and/or SUPABASE_URL repository variables are not set yet — skipping. See README for how to add them."
+      - name: Check noindex, CSP script-src and connect-src
+        if: ${{ vars.SITE_URL != '' && vars.SUPABASE_URL != '' }}
+        run: node tools/check-site-headers.js "${{ vars.SITE_URL }}" "${{ vars.SUPABASE_URL }}"
+      - name: Report failure
+        if: failure()
+        uses: ./.github/actions/report-failure
+        with:
+          title: "[weekly-checks] Live site headers check is failing"
+          body: |
+            The deployed site's headers no longer match what's expected (noindex, CSP script-src with no unsafe-inline, connect-src limited to self + Supabase). Check the Netlify deploy and netlify.toml.
+
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+  link-check:
+    name: c. Link check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "20"
+      - name: Check every link in the content
+        run: node tools/check-links.js
+      - name: Report failure
+        if: failure()
+        uses: ./.github/actions/report-failure
+        with:
+          title: "[weekly-checks] Broken link(s) in the content"
+          body: |
+            One or more links in the lesson content, README or CLAUDE.md are no longer reachable. See the job log for which ones.
+
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+  exam-outline-watcher:
+    name: d. Exam outline watcher
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "20"
+      - name: Compare DP-600 / DP-700 / PL-300 outlines against data/watch.json
+        run: node tools/check-exam-outlines.js
+      - name: Report failure
+        if: failure()
+        uses: ./.github/actions/report-failure
+        with:
+          title: "[weekly-checks] An exam outline changed (or could not be checked)"
+          body: |
+            One of the DP-600 / DP-700 / PL-300 study guide pages either shows a different "skills measured as of" date than data/watch.json, or this script could not parse the page any more. See the job log. This never edits lessons or data/watch.json automatically — recheck the affected lessons by hand, then update both together.
+
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+  stale-verification:
+    name: e. Stale verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "20"
+      - name: Fail if any lesson's verified date is older than 45 days
+        run: node tools/check-stale-verification.js --maxAgeDays=45
+      - name: Report failure
+        if: failure()
+        uses: ./.github/actions/report-failure
+        with:
+          title: "[weekly-checks] One or more lessons need re-verifying"
+          body: |
+            A lesson's `verified` field is missing or older than 45 days. See the job log for which one(s), then recheck against current docs and update the `verified` field.
+
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

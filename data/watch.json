@@ -1,0 +1,17 @@
+{
+  "dp600": {
+    "url": "https://learn.microsoft.com/en-us/credentials/certifications/resources/study-guides/dp-600",
+    "skillsMeasuredAsOf": "July 21, 2026",
+    "note": "A new English outline is scheduled to take effect 19 Oct 2026 (minor change to 'query and analyze data') — expect this to change around then."
+  },
+  "dp700": {
+    "url": "https://learn.microsoft.com/en-us/credentials/certifications/resources/study-guides/dp-700",
+    "skillsMeasuredAsOf": "July 21, 2026",
+    "note": "Apache Airflow workspace settings replaced Dataflows Gen2 settings in this outline."
+  },
+  "pl300": {
+    "url": "https://learn.microsoft.com/en-us/credentials/certifications/resources/study-guides/pl-300",
+    "skillsMeasuredAsOf": "April 20, 2026",
+    "note": null
+  }
+}

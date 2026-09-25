@@ -1,0 +1,4 @@
+# CI-only test dependency — never shipped to the deployed static site
+# (netlify.toml publishes the repo root as-is; this file is just inert
+# alongside it, the same way CLAUDE.md/README.md are).
+playwright==1.63.0

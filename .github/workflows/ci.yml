@@ -1,0 +1,89 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  syntax:
+    name: JS syntax check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "20"
+      - name: node --check every shipped and tooling script
+        run: |
+          set -euo pipefail
+          for f in js/*.js tools/*.js tests/*.js; do
+            echo "node --check $f"
+            node --check "$f"
+          done
+
+  no-inline-scripts:
+    name: No inline scripts (CSP compliance)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: "20"
+      - run: node tools/check-no-inline-scripts.js
+
+  playwright:
+    name: Playwright suite (Supabase mocked)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.11"
+      - name: Install test dependencies
+        run: |
+          set -euo pipefail
+          pip install -r tests/requirements.txt
+          playwright install --with-deps chromium
+      - name: Start local server (real netlify.toml headers + fake REST backend)
+        run: |
+          set -euo pipefail
+          python3 tests/server.py 8765 &
+          echo $! > /tmp/server.pid
+          for i in $(seq 1 20); do
+            curl -sf http://127.0.0.1:8765/fake-rest/_reset && break
+            sleep 0.5
+          done
+      - name: Run the Playwright suite
+        run: |
+          set -euo pipefail
+          python3 tests/test_app.py --base-url http://127.0.0.1:8765
+      - name: Stop local server
+        if: always()
+        run: kill "$(cat /tmp/server.pid)" 2>/dev/null || true
+      - name: Upload Playwright traces on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: playwright-failure-output
+          path: |
+            test-results/
+            /tmp/server.log
+          if-no-files-found: ignore
+          retention-days: 14
