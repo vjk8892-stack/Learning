@@ -47,6 +47,12 @@ function parseArgs() {
 // CLAUDE.md prose quoting the CSP's `style-src`/`font-src` values, not
 // links: Google's Fonts API serves nothing at its own root by design (the
 // real, checkable stylesheet URL with its `?family=` path is unaffected).
+// The bare Supabase project origin is the same pattern: CLAUDE.md quotes
+// it as the "URL" value, but a Supabase project serves nothing at `/` by
+// design (only under `/rest/v1/`, `/auth/v1/`, etc), so a 404 there is
+// normal and not evidence the project is down or paused. Real liveness of
+// this exact project is already verified for real by weekly-checks.yml's
+// "Data lock-down" job, which hits the actual REST API.
 // Listed explicitly, with reasons, rather than guessed from markup
 // structure, so nothing else is silently excluded.
 const IGNORE_URLS = new Set([
@@ -54,6 +60,7 @@ const IGNORE_URLS = new Set([
   "https://link",
   "https://fonts.googleapis.com",
   "https://fonts.gstatic.com",
+  "https://pdiohswlwgudikvaujen.supabase.co",
 ]);
 
 function extractLinks() {
