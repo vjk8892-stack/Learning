@@ -325,3 +325,28 @@ def _check_p3e1(spark, ctx):
     assert next_incremental_count == 0, f"a later incremental pull after a delete-only change should find 0 new rows, got {next_incremental_count}"
     orphan_count = spark.table("orders_incremental").filter("order_id = 1").count()
     assert orphan_count == 1, f"order 1 should still be present (orphaned) in orders_incremental, got {orphan_count} rows"
+
+
+@check("p3-g-1")
+def _check_p3g1(spark, ctx):
+    mismatches = ctx["ns"]["mismatches"]
+    assert mismatches == [], f"the correct rebuild should validate with zero mismatches, got {mismatches}"
+
+    buggy_mismatches = ctx["ns"]["buggy_mismatches"]
+    assert len(buggy_mismatches) == 1, f"the buggy rebuild should produce exactly one mismatch, got {len(buggy_mismatches)}"
+    assert buggy_mismatches[0]["order_id"] == 1, f"the buggy threshold should wrongly discount order 1, got order_id {buggy_mismatches[0]['order_id']}"
+
+
+@check("p3-i-1")
+def _check_p3i1(spark, ctx):
+    n = _row_count(spark, "daily_summary")
+    assert n == 2, f"daily_summary should have 2 rows after the first MERGE, got {n}"
+    rows = {r["order_date"].isoformat(): (r["order_count"], r["total_amount"]) for r in spark.table("daily_summary").collect()}
+    assert rows["2026-09-01"] == (2, 207000.0), f"unexpected 2026-09-01 row: {rows['2026-09-01']}"
+    assert rows["2026-09-02"] == (1, 810000.0), f"unexpected 2026-09-02 row: {rows['2026-09-02']}"
+
+    # The brk step reruns the identical MERGE; the table should be untouched.
+    n_after_rerun = _row_count(spark, "daily_summary")
+    assert n_after_rerun == 2, f"a rerun of the same MERGE should leave the row count at 2, got {n_after_rerun}"
+    rows_after = {r["order_date"].isoformat(): (r["order_count"], r["total_amount"]) for r in spark.table("daily_summary").collect()}
+    assert rows_after == rows, f"a rerun of the same MERGE should not change any values, before={rows} after={rows_after}"

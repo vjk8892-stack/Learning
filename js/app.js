@@ -225,9 +225,99 @@ print(spark.table("orders_incremental").filter("order_id = 1").count())   # 1: s
     prove:["You can list the three kinds of thing this assistant flags and what each becomes in Fabric.","You ran either the readiness scan or the side-by-side mount, and can describe what you saw."],
     watch:"Preview tools change fast. Confirm this still matches the current Learn documentation before you rely on any specific screen or menu name."}
   ]},
-  {id:"p3-g",t:"Migrate one SSIS package",d:"Use a public sample such as AdventureWorks, never client work. Follow inventory, classify, design, convert, validate, cut over. Fabric has no SSIS integration runtime, so either keep running packages in ADF and call them from a Fabric pipeline, or rebuild them as pipelines and notebooks. Automated converters cover only part of a real portfolio."},
-  {id:"p3-h",t:"Move one SSRS report to a paginated report",d:"Bring the .rdl across and compare the output page by page."},
-  {id:"p3-i",t:"Move one stored procedure to the Warehouse",d:"Call it from a pipeline stored procedure activity."}
+  {id:"p3-g",t:"Migrate one SSIS package",d:"Use a public sample such as AdventureWorks, never client work. Follow inventory, classify, design, convert, validate, cut over. Fabric has no SSIS integration runtime, so either keep running packages in ADF and call them from a Fabric pipeline, or rebuild them as pipelines and notebooks. Automated converters cover only part of a real portfolio.",subs:[
+   {id:"p3-g-1",t:"Rebuild one SSIS Data Flow, then validate it",mins:25,verified:{date:"2026-09-25",level:"run",note:"Code runs and asserts correctly (CI): the correct rebuild validates with zero mismatches, and a deliberately introduced rebuild bug is caught."},
+    learn:["The methodology is inventory, classify, design, convert, validate, cut over. Inventory lists every package and what it does. Classify sorts them by complexity: a straight Data Flow Task is simple, one with script tasks or complex expressions is not. Design decides pipeline plus notebook versus staying in ADF. Convert does the rebuild. Validate proves the output matches. Cut over switches the schedule across. This lesson rebuilds one simple package's Data Flow Task and validates it, the step every migration needs regardless of what converts it."],
+    try:[{lang:"python",label:"Python, either platform",code:R`from pyspark.sql import functions as F
+
+# Stand-in for the SSIS package's OLE DB Source: a small staging extract.
+staging = spark.createDataFrame([
+  (1, "C001", 1000.0),
+  (2, "C002",  250.0),
+  (3, "C003", 4000.0),
+], ["order_id", "customer_id", "amount"])
+
+# The package's Derived Column transform: a 10% discount above 3000.
+rebuilt = staging.withColumn(
+  "net_amount",
+  F.when(F.col("amount") > 3000, F.col("amount") * 0.9).otherwise(F.col("amount")))
+rebuilt.write.mode("overwrite").format("delta").saveAsTable("orders_migrated")
+
+# The validate step: row for row against values worked out by hand from
+# the original package's expression, not re-derived from the new code.
+expected = {1: 1000.0, 2: 250.0, 3: 3600.0}
+mismatches = [r for r in rebuilt.collect() if r["net_amount"] != expected[r["order_id"]]]
+print("Mismatches:", mismatches)`}],
+    expect:"An empty mismatches list. Order 3's net_amount is 3600.0, the only row the discount applies to.",
+    brk:[{p:"Introduce a rebuild bug on purpose, a threshold typo, and confirm validation catches it."},
+         {lang:"python",label:"Python",code:R`buggy = staging.withColumn(
+  "net_amount",
+  F.when(F.col("amount") >= 1000, F.col("amount") * 0.9).otherwise(F.col("amount")))
+buggy_mismatches = [r for r in buggy.collect() if r["net_amount"] != expected[r["order_id"]]]
+print("Mismatches:", buggy_mismatches)   # order 1 wrongly discounted now`}],
+    prove:["Your correct rebuild passed validation with zero mismatches.","You introduced a bug on purpose and validation caught it."],
+    quiz:[["Why does convert alone not prove a migration is correct?","Convert only produces new code. Validate is the step that proves the new code's output matches the original, row for row, against values worked out independently, not re-derived from the new code itself."]]},
+   {id:"p3-g-2",t:"Decide: keep in ADF, or rebuild",mins:15,verified:{date:"2026-09-25",level:"unverified",note:"General architecture reasoning, not a doc-checkable fact. Nothing here needed checking against current docs this session."},
+    learn:["Fabric has no SSIS integration runtime, so a package cannot simply move across unchanged. Two honest options exist: keep it running in ADF and call it from a Fabric pipeline, which is fast but leaves you maintaining two platforms, or rebuild it as a Fabric pipeline plus notebook, which is slower but gets you fully off ADF. Automated converters can help with simple, straight Data Flow Task packages, but cover only part of a real portfolio: script tasks, complex expressions and custom components usually still need a human to rebuild them."],
+    try:[{p:"For the package you migrated in the previous lesson, write one sentence for each option: what keeping it in ADF would cost you, and what rebuilding it would cost you."},
+         {p:"Pick the option you would actually choose for this package, and say why in one more sentence."}],
+    expect:"A short, honest comparison you could defend to a lead, not a rule that always favours rebuilding.",
+    brk:"Now imagine the same package had three script tasks doing custom parsing. Redo the comparison. Notice how quickly the balance shifts toward keeping it in ADF, or at least not trusting a converter with it.",
+    prove:["You can state, for one real package, which option you would choose and why."]}
+  ]},
+  {id:"p3-h",t:"Move one SSRS report to a paginated report",d:"Bring the .rdl across and compare the output page by page.",subs:[
+   {id:"p3-h-1",t:"Move an .rdl to a Fabric paginated report",mins:15,verified:{date:"2026-09-25",level:"unverified",note:"Written from general Fabric paginated-reports knowledge. Not checked against current docs this session, this environment cannot reach learn.microsoft.com."},
+    learn:["A paginated report is Fabric's version of an SSRS report: same .rdl format, same Report Builder-style authoring, built for fixed-layout, print-ready output rather than the free-form exploration a Power BI report gives you. Most straightforward .rdl files upload with no change, since the format itself did not change."],
+    try:[{p:"Export or copy the .rdl file from your SSRS report server."},
+         {p:"In Fabric, create a Paginated report item and upload the .rdl file."},
+         {p:"Run the paginated report and compare its output page by page against the original SSRS output, using the same parameters."}],
+    expect:"The two outputs match page by page. Any difference usually traces to a data source connection string that needs repointing at the new environment, not the report definition itself.",
+    brk:"Try a report that uses a custom assembly or a data source type Fabric paginated reports do not support, and note exactly what breaks. That is the honest limit of a straight .rdl move.",
+    prove:["You compared your own report's output side by side and can say whether it matched.","You can name one thing that would stop a straight .rdl move from working."]}
+  ]},
+  {id:"p3-i",t:"Move one stored procedure to the Warehouse",d:"Call it from a pipeline stored procedure activity.",subs:[
+   {id:"p3-i-1",t:"A stored procedure's logic, proven with a runnable MERGE",mins:20,verified:{date:"2026-09-25",level:"run",note:"The MERGE logic runs and asserts correctly (CI): 2 rows after the first run, unchanged after an idempotent rerun. The CREATE PROCEDURE/EXEC wrapper itself is Warehouse-only T-SQL and is not run here; confirm its exact syntax against current docs."},
+    learn:["A Warehouse stored procedure is real T-SQL: CREATE OR ALTER PROCEDURE, parameters, EXEC. What is usually worth migrating carefully is not the CREATE PROCEDURE wrapper but the logic inside it. This lesson proves the logic, an upsert of a daily summary, with a runnable MERGE."],
+    try:[{lang:"sql",label:"SQL, the summary table a procedure would maintain",code:R`CREATE OR REPLACE TABLE daily_summary (order_date DATE, order_count INT, total_amount DOUBLE)
+USING DELTA;`},
+         {lang:"python",label:"Python, the procedure's logic as a MERGE",code:R`from pyspark.sql import functions as F
+
+source = (spark.createDataFrame([
+    ("2026-09-01", 2, 207000.0),
+    ("2026-09-02", 1, 810000.0),
+  ], ["order_date", "order_count", "total_amount"])
+  .withColumn("order_date", F.to_date("order_date")))
+source.createOrReplaceTempView("daily_summary_source")
+
+spark.sql("""
+  MERGE INTO daily_summary AS t
+  USING daily_summary_source AS s
+    ON t.order_date = s.order_date
+  WHEN MATCHED THEN UPDATE SET *
+  WHEN NOT MATCHED THEN INSERT *
+""")
+print(spark.table("daily_summary").count())`}],
+    expect:"A count of 2, one row per date.",
+    brk:[{p:"Rerun the exact same MERGE a second time, as a pipeline stored procedure activity retrying after a failure would. Confirm the count is still 2 and the totals have not doubled."},
+         {lang:"sql",label:"SQL",code:R`MERGE INTO daily_summary AS t
+USING daily_summary_source AS s
+  ON t.order_date = s.order_date
+WHEN MATCHED THEN UPDATE SET *
+WHEN NOT MATCHED THEN INSERT *;`}],
+    prove:["You can explain why a stored procedure called from a pipeline needs to be safe to run twice.","Your rerun left the summary table unchanged."],
+    watch:"The CREATE OR ALTER PROCEDURE wrapper itself, and calling it with EXEC from a pipeline stored procedure activity, is real Warehouse T-SQL not exercised here. Confirm the exact syntax against the current docs when you build it for real."}
+  ]},
+  {id:"p3-j",t:"Write the migration case study",d:"Before and after diagrams, what converted cleanly, what needed rework, and how you validated it. The ship deliverable for this phase.",subs:[
+   {id:"p3-j-1",t:"Write the case study: before, after, and how you proved it",mins:25,verified:{date:"2026-09-25",level:"unverified",note:"A synthesis and writing task, not a doc-checkable or runnable claim."},
+    learn:["A case study is the strongest single item in this phase's portfolio, and it only works if it shows real work: what the package looked like, what changed, and what you actually proved. Three sections make an honest case study: what you started with, what you rebuilt it into, and how you know the rebuild is correct."],
+    try:[{p:"Draw or describe, in one paragraph each, the before (the original SSIS package, SSRS report or stored procedure) and the after (the pipeline, notebook, paginated report or Warehouse procedure it became). A simple box-and-arrow sketch is enough; it does not need to be polished."},
+         {p:"List what converted cleanly with no rework, and separately, what needed rework and why. Be honest about the second list. A case study that claims everything converted perfectly reads as untested, not impressive."},
+         {p:"Describe how you validated the result: the specific comparison you ran (task p3-g's validate step is one concrete example) and what it told you."}],
+    expect:"A short, honest write-up with three clear sections, saved in this lesson's note, that you could actually hand to an interviewer.",
+    brk:"Read it back and cut every sentence that only says the migration went well. Keep only the sentences a sceptical reader could check against something concrete: a row count, a comparison, a screenshot.",
+    prove:["Your case study exists, in this lesson's note, covering before, after, what needed rework, and how you validated it.","You can defend every claim in it with something specific, not just it worked."],
+    watch:"This is the ship deliverable for the whole phase. Link the actual builds it describes, so a reader can go check your claims themselves."}
+  ]}
  ],
  ship:"An SSIS to Fabric migration case study: before and after diagrams, what converted cleanly, what needed rework, and how you validated it.",
  bridge:[["SSIS package","Pipeline or notebook"],["Foreach Loop container","ForEach activity"],["SSRS .rdl report","Paginated report"],["Self-hosted IR","On-premises data gateway"],["Stored procedure","Warehouse stored procedure"]],
