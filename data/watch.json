@@ -1,13 +1,13 @@
 {
   "dp600": {
     "url": "https://learn.microsoft.com/en-us/credentials/certifications/resources/study-guides/dp-600",
-    "skillsMeasuredAsOf": "July 21, 2026",
-    "note": "A new English outline is scheduled to take effect 19 Oct 2026 (minor change to 'query and analyze data') — expect this to change around then."
+    "skillsMeasuredAsOf": "October 19, 2026",
+    "note": "Updated 25 Sep 2026 after the exam-outline-watcher CI job confirmed the date changed from July 21, 2026, as previously expected. The actual page content was not re-read this session (this environment cannot reach learn.microsoft.com) -- as last read on 24 Sep 2026 the change was a minor addition to 'query and analyze data' plus Direct Lake on OneLake versus the SQL analytics endpoint."
   },
   "dp700": {
     "url": "https://learn.microsoft.com/en-us/credentials/certifications/resources/study-guides/dp-700",
-    "skillsMeasuredAsOf": "July 21, 2026",
-    "note": "Apache Airflow workspace settings replaced Dataflows Gen2 settings in this outline."
+    "skillsMeasuredAsOf": "October 19, 2026",
+    "note": "Updated 25 Sep 2026 after the exam-outline-watcher CI job confirmed the date changed from July 21, 2026 -- this was not anticipated (only the July blueprint's Airflow-replaces-Dataflows-Gen2 change was known). Page content was not re-read this session (this environment cannot reach learn.microsoft.com), so what changed beyond the date is unknown. Recheck when the page can be read."
   },
   "pl300": {
     "url": "https://learn.microsoft.com/en-us/credentials/certifications/resources/study-guides/pl-300",
