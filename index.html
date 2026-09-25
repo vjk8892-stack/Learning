@@ -130,8 +130,10 @@ p{margin:0}
 .ip-saved{font-size:.82rem;color:var(--muted);white-space:nowrap}
 @media (max-width:900px){.ip-pct,.ip-saved{display:none}.insights-pill{padding:4px;gap:6px}}
 .account-wrap{position:relative}
-.account-circle{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(140deg,var(--bronze),var(--gold));color:#1a1105;font-family:var(--display);font-weight:700;font-size:.9rem;border:0;cursor:pointer;transition:box-shadow .6s}
+.account-circle{position:relative;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:linear-gradient(140deg,var(--bronze),var(--gold));color:#1a1105;font-family:var(--display);font-weight:700;font-size:.9rem;border:0;cursor:pointer;transition:box-shadow .6s}
 .account-circle:hover{box-shadow:0 0 0 3px rgba(255,203,77,.25)}
+.backup-due-dot{position:absolute;top:-2px;right:-2px;width:9px;height:9px;border-radius:50%;background:#ff9c4d;border:2px solid var(--void);box-shadow:0 0 6px rgba(255,156,77,.7)}
+.backup-due-dot[hidden]{display:none}
 .account-menu{position:absolute;right:0;top:calc(100% + 10px);width:240px;background:var(--panel-solid);border:1px solid var(--line-2);border-radius:12px;padding:10px;box-shadow:0 24px 60px -24px rgba(0,0,0,.7);z-index:65}
 .account-menu[hidden]{display:none}
 .account-email{font-size:.82rem;color:var(--muted);padding:6px 10px 10px;border-bottom:1px solid var(--line);margin:0 0 6px;word-break:break-all}
@@ -443,6 +445,11 @@ details.q summary{cursor:pointer;padding:8px 12px;font-weight:600;font-size:.93r
 details.q p{padding:0 12px 10px;margin:0;color:var(--soft);font-size:.93rem}
 .gotcha{font-size:.9rem;color:var(--muted);border-left:2px solid var(--bronze);padding-left:12px}
 .gotcha b{color:var(--bronze)}
+.verified-line{font-size:.82rem;color:var(--dim);margin-top:10px}
+.verified-line b{color:var(--silver)}
+.verified-line.stale{color:var(--muted)}
+.verified-flag{color:#ff9c4d;font-weight:600}
+.fresh-stale{color:#ff9c4d;font-weight:600}
 .lf{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding-top:12px}
 .lchk{position:relative;display:inline-flex;align-items:center;gap:10px;cursor:pointer;font-weight:600}
 .lchk .box{margin-top:0}
@@ -606,9 +613,16 @@ html:not(.gate-open) header.nav,html:not(.gate-open) main,html:not(.gate-open) f
 .pw-toggle{position:absolute;right:5px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.04);border:1px solid var(--line-2);border-radius:6px;padding:4px 10px;font-size:.78rem;color:var(--soft);cursor:pointer}
 .pw-toggle:hover{border-color:var(--gold);color:var(--gold)}
 .login-error{color:#ff9c9c;font-size:.88rem;min-height:1.3em;margin:2px 0 14px}
+.login-error.success{color:#9be29b}
 .login-card .btn{width:100%}
+.login-card .btn.ghost{margin-top:10px}
+.link-btn{background:none;border:none;padding:0;color:var(--gold);font-size:.85rem;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.link-btn:hover{color:var(--text)}
+.login-forgot{display:block;margin:12px auto 0;text-align:center}
 .local-banner{margin:0;padding:8px 16px;text-align:center;font-size:.86rem;color:var(--gold);background:rgba(255,203,77,.1);border-bottom:1px solid rgba(255,203,77,.32)}
 .local-banner[hidden]{display:none}
+.expired-banner{display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap}
+.expired-banner .link-btn{font-weight:600}
 @media (max-width:420px){.gate-box{padding:22px 18px}}
 
 /* ---------- Wide-screen gutters: flight ruler (left), orbit system (right) ---------- */
@@ -676,6 +690,36 @@ html:not(.gate-open) header.nav,html:not(.gate-open) main,html:not(.gate-open) f
       </label>
       <p class="login-error" id="loginError" role="alert" aria-live="assertive"></p>
       <button type="submit" class="btn primary" id="loginSubmit">Sign in</button>
+      <button type="button" class="link-btn login-forgot" id="forgotLink">Forgot password?</button>
+    </form>
+    <form class="login-card" id="resetForm" hidden novalidate>
+      <h2>Reset your password</h2>
+      <p class="login-hint">Enter your email and, if an account exists for it, we'll send a reset link.</p>
+      <label class="field">
+        <span>Email</span>
+        <input type="email" id="resetEmail" name="email" autocomplete="username" required>
+      </label>
+      <p class="login-error" id="resetMsg" role="status" aria-live="polite"></p>
+      <button type="submit" class="btn primary" id="resetSubmit">Send reset link</button>
+      <button type="button" class="btn ghost" id="resetBack">Back to sign in</button>
+    </form>
+    <form class="login-card" id="newPasswordForm" hidden novalidate>
+      <h2>Set a new password</h2>
+      <p class="login-hint">Choose a password with at least 12 characters.</p>
+      <label class="field">
+        <span>New password</span>
+        <span class="pw-wrap">
+          <input type="password" id="newPassword" name="new-password" autocomplete="new-password" required minlength="12">
+          <button type="button" class="pw-toggle" id="newPwToggle" aria-label="Show password">Show</button>
+        </span>
+      </label>
+      <label class="field">
+        <span>Confirm new password</span>
+        <input type="password" id="newPasswordConfirm" name="new-password-confirm" autocomplete="new-password" required minlength="12">
+      </label>
+      <p class="login-error" id="newPasswordError" role="alert" aria-live="assertive"></p>
+      <button type="submit" class="btn primary" id="newPasswordSubmit">Set password</button>
+      <button type="button" class="btn ghost" id="newPasswordCancel">Cancel</button>
     </form>
   </div>
 </div>
@@ -700,6 +744,10 @@ html:not(.gate-open) header.nav,html:not(.gate-open) main,html:not(.gate-open) f
 </div>
 
 <p class="local-banner" id="localBanner" hidden>Local-only mode: no login is configured, so this device is unprotected. Progress and notes stay in this browser only.</p>
+<p class="local-banner expired-banner" id="expiredBanner" hidden role="status" aria-live="polite">
+  <span id="expiredBannerText">Session expired. Your changes are safe on this device.</span>
+  <button type="button" class="link-btn" id="expiredBannerSignIn">Sign in to sync</button>
+</p>
 
 <header class="nav">
   <div class="wrap nav-in">
@@ -731,6 +779,7 @@ html:not(.gate-open) header.nav,html:not(.gate-open) main,html:not(.gate-open) f
       <div class="account-wrap" id="accountWrap" hidden>
         <button type="button" class="account-circle" id="accountBtn" aria-haspopup="menu" aria-expanded="false" aria-controls="accountMenu">
           <span id="accountInitial">A</span>
+          <i class="backup-due-dot" id="backupDueDot" aria-hidden="true" hidden></i>
         </button>
         <div class="account-menu" id="accountMenu" role="menu" aria-labelledby="accountBtn" hidden>
           <p class="account-email" id="accountEmail" role="none"></p>
@@ -739,6 +788,11 @@ html:not(.gate-open) header.nav,html:not(.gate-open) main,html:not(.gate-open) f
           <button type="button" class="account-item" id="menuExportNotesMd" role="menuitem">Export notes (Markdown)</button>
           <button type="button" class="account-item" id="menuExportNotesJson" role="menuitem">Export notes (JSON)</button>
           <button type="button" class="account-item" id="menuImportNotes" role="menuitem">Import notes</button>
+          <button type="button" class="account-item" id="menuDownloadBackup" role="menuitem">Download backup</button>
+          <button type="button" class="account-item" id="menuRestoreBackup" role="menuitem">Restore from backup</button>
+          <button type="button" class="account-item" id="menuRestoreSafety" role="menuitem">Restore a safety snapshot</button>
+          <p class="account-hint" id="backupHint"></p>
+          <button type="button" class="account-item" id="menuChangePassword" role="menuitem">Change password</button>
           <button type="button" class="account-item" id="menuSignOut" role="menuitem">Sign out</button>
           <button type="button" class="account-item danger" id="menuClearDevice" role="menuitem">Sign out and clear this device</button>
           <p class="account-hint">Clears progress, notes and settings stored in this browser. Useful on a shared or public computer.</p>
@@ -774,6 +828,7 @@ html:not(.gate-open) header.nav,html:not(.gate-open) main,html:not(.gate-open) f
       <p class="ip-save-status" id="ipSaveStatus" aria-live="polite"></p>
       <p class="ip-sub" id="ipLastSaved"></p>
       <p class="ip-sub" id="ipLastChange"></p>
+      <p class="ip-sub" id="ipLastBackup"></p>
     </section>
     <section class="ip-section" id="ipNotesSection" hidden>
       <p class="ip-label">Notes</p>
@@ -871,7 +926,7 @@ html:not(.gate-open) header.nav,html:not(.gate-open) main,html:not(.gate-open) f
         <p>Checked on 24 September 2026 against Microsoft Learn, Databricks documentation and recent community write-ups. Each row says what I found and what it changed here.</p></div>
       <div class="table-wrap rv soft">
         <table class="fresh">
-          <thead><tr><th scope="col">Topic</th><th scope="col">What I found</th><th scope="col">What changed in this path</th></tr></thead>
+          <thead><tr><th scope="col">Topic</th><th scope="col">What I found</th><th scope="col">What changed in this path</th><th scope="col">Status</th><th scope="col">Checked on</th></tr></thead>
           <tbody id="freshRows"></tbody>
         </table>
       </div>

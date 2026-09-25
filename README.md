@@ -281,6 +281,19 @@ opening it over `http://`.
 4. Supabase free projects pause after 7 days of inactivity (data is kept;
    resume it from the dashboard). Use the page regularly, add a scheduled
    keep-alive, or upgrade the plan if that's a problem.
+5. For password recovery to work: Supabase dashboard → Authentication →
+   URL Configuration → set **Site URL** to the deployed site's origin
+   (e.g. `https://your-site.netlify.app`), and add that same origin under
+   **Redirect URLs**. Without this, the emailed reset link won't land back
+   on the page correctly. Test it by actually requesting a reset and
+   confirming the email arrives and the link works — that can't be
+   verified from a dev sandbox with no outbound email or a reachable
+   Supabase project.
+6. For the weekly-checks workflow to run its site/data checks instead of
+   skipping them, add three repository variables (Settings → Secrets and
+   variables → Actions → Variables, not Secrets — these aren't sensitive):
+   `SITE_URL` (the deployed origin), `SUPABASE_URL` and
+   `SUPABASE_PUBLISHABLE_KEY` (the same two values already in `config.js`).
 
 ## Adding or removing a user
 
@@ -289,6 +302,37 @@ repo or by asking an AI session with Supabase access to do it — user
 creation is intentionally outside what this project's tooling is allowed to
 do. Invite or add the user there, then have them sign in with the login
 card.
+
+**Never delete a user to fix a login problem.** `public.progress.user_id`
+and `public.notes.user_id` are both `references auth.users(id) on delete
+cascade` — deleting the auth user silently deletes their progress and
+notes rows too, with no recovery short of a database backup. If someone is
+locked out, use the dashboard's own tools instead: Authentication → Users
+→ that user → **Send password recovery** (or **Reset password**,
+depending on the dashboard version) sends the same reset email the page's
+own "Forgot password?" link would, and the account itself, and its data,
+are untouched.
+
+## Password recovery and changing your password
+
+- **Forgot password**: the login card has a "Forgot password?" link. It
+  always shows the same message ("If an account exists for that email, a
+  reset link is on its way") whether or not the email has an account, the
+  same principle as the sign-in error. The email links back to the site
+  with a Supabase recovery token in the URL; the page detects it
+  (`PASSWORD_RECOVERY` from `onAuthStateChange`) and shows a "Set a new
+  password" card instead of the login card — 12-character minimum, a
+  confirm field, generic errors. Cancelling out of that card while it got
+  there from an emailed link signs out the temporary recovery session and
+  returns to the plain login card, rather than leaving a half-authenticated
+  state open.
+- **Change password** (already signed in): the same card, reachable from
+  the account menu's **Change password** item. Cancelling here just closes
+  the card and returns to the app, since there's a normal session to
+  return to.
+- **For this to work in Supabase**, Authentication → URL Configuration
+  needs the Site URL set to the deployed site's origin, and that origin
+  present in Redirect URLs — see the deploy checklist below.
 
 ## Backing up
 

@@ -74,6 +74,18 @@ jobs:
         run: |
           set -euo pipefail
           python3 tests/test_app.py --base-url http://127.0.0.1:8765
+      - name: Run the password recovery suite
+        run: |
+          set -euo pipefail
+          python3 tests/test_password_recovery.py --base-url http://127.0.0.1:8765
+      - name: Run the session expiry suite
+        run: |
+          set -euo pipefail
+          python3 tests/test_session_expiry.py --base-url http://127.0.0.1:8765
+      - name: Run the backup/restore suite
+        run: |
+          set -euo pipefail
+          python3 tests/test_backup.py --base-url http://127.0.0.1:8765
       - name: Stop local server
         if: always()
         run: kill "$(cat /tmp/server.pid)" 2>/dev/null || true

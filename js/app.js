@@ -132,15 +132,16 @@ var ROSETTA=[
 ["Stored procedure","Warehouse stored procedure",3]
 ];
 
+/* Each row: [topic, detail, impact, status ("docs"|"unverified"), checkedOn (ISO date) ] */
 var FRESH=[
-["Fabric Spark runtime","Runtime 2.0 (Spark 4.1, Delta 4.2, Python 3.13) is generally available. Microsoft plans to make it the default for new workspaces in late September 2026. Delta 4.x-specific features are experimental.","Phase 2 starts with choosing a runtime, and every lesson runs on 1.3 or 2.0."],
-["Databricks Free Edition","Documentation updated 11 September 2026: serverless-only, no custom compute, restricted outbound internet, one small SQL warehouse, Unity Catalog ready to use.","The cluster and auto-terminate steps are gone. Sample data is created in code."],
-["DP-600 exam","The current outline is dated 21 July 2026. A new English outline takes effect 19 October 2026 with a minor change to query and analyze data. It lists Direct Lake on OneLake versus the SQL analytics endpoint.","Phase 5 targets the 19 October outline, and phase 1 gains a Direct Lake comparison."],
-["DP-700 exam","Blueprint updated 21 July 2026. One change since April: Apache Airflow workspace settings replaced Dataflows Gen2 workspace settings.","Airflow is added as a stretch mission."],
-["PL-300 exam","Outline dated 20 April 2026, now listing the choice between DirectLake, DirectQuery and Import.","Phase 5 notes the check."],
-["ADF to Fabric","A Migrate to Fabric (Preview) assistant and factory mounting exist. SSIS integration runtimes have no Fabric equivalent, self-hosted IRs become gateways, and mapping data flows need rebuilding.","Phase 3 gains a migration-assistant task and clearer SSIS notes."],
-["Fabric trial","Still 60 days, provisioned as F4 or F64 depending on the tenant.","No change."],
-["V-Order","Off by default for newly created workspaces.","Noted in the table maintenance lesson."]
+["Fabric Spark runtime","Runtime 2.0 (Spark 4.1, Delta 4.2, Python 3.13) is generally available. Microsoft plans to make it the default for new workspaces in late September 2026. Delta 4.x-specific features are experimental.","Phase 2 starts with choosing a runtime, and every lesson runs on 1.3 or 2.0.","docs","2026-09-24"],
+["Databricks Free Edition","Documentation updated 11 September 2026: serverless-only, no custom compute, restricted outbound internet, one small SQL warehouse, Unity Catalog ready to use.","The cluster and auto-terminate steps are gone. Sample data is created in code.","docs","2026-09-24"],
+["DP-600 exam","The current outline is dated 21 July 2026. A new English outline takes effect 19 October 2026 with a minor change to query and analyze data. It lists Direct Lake on OneLake versus the SQL analytics endpoint.","Phase 5 targets the 19 October outline, and phase 1 gains a Direct Lake comparison.","docs","2026-09-24"],
+["DP-700 exam","Blueprint updated 21 July 2026. One change since April: Apache Airflow workspace settings replaced Dataflows Gen2 workspace settings.","Airflow is added as a stretch mission.","docs","2026-09-24"],
+["PL-300 exam","Outline dated 20 April 2026, now listing the choice between DirectLake, DirectQuery and Import.","Phase 5 notes the check.","docs","2026-09-24"],
+["ADF to Fabric","A Migrate to Fabric (Preview) assistant and factory mounting exist. SSIS integration runtimes have no Fabric equivalent, self-hosted IRs become gateways, and mapping data flows need rebuilding.","Phase 3 gains a migration-assistant task and clearer SSIS notes.","docs","2026-09-24"],
+["Fabric trial","Still 60 days, provisioned as F4 or F64 depending on the tenant.","No change.","docs","2026-09-24"],
+["V-Order","Off by default for newly created workspaces.","Noted in the table maintenance lesson.","docs","2026-09-24"]
 ];
 
 var COSTS=[
@@ -164,7 +165,7 @@ var P2={
 
  /* ---------------------------------------------------------------- */
  {id:"p2-runtime",t:"Pick your Fabric Spark runtime",d:"Know which runtime your notebooks use before you write any code.",subs:[
-  {id:"p2-runtime-1",t:"Check and choose a runtime",mins:15,
+  {id:"p2-runtime-1",t:"Check and choose a runtime",mins:15,verified:{date:"2026-09-24",level:"docs",note:"Runtime 1.3/2.0 versions and the late-Sep-2026 default-workspace date checked against learn.microsoft.com/en-us/fabric/data-engineering/runtime-2-0."},
    learn:["A Fabric runtime bundles Spark, Delta Lake, Python and Java. Runtime 1.3 is Spark 3.5 with Delta 3.2. Runtime 2.0 is Spark 4.1 with Delta 4.2 and Python 3.13, and it is generally available.",
           "Existing workspaces stay on 1.3 until you opt in. Microsoft plans to make 2.0 the default for new workspaces and environments in late September 2026, so a workspace you create now may already be on 2.0."],
    try:[{p:"Open a Fabric notebook, attach a Lakehouse and run this cell."},
@@ -182,7 +183,7 @@ print("Python version:", sys.version.split()[0])`},
 
  /* ---------------------------------------------------------------- */
  {id:"p2-spark",t:"Explain Spark in your own words",d:"Driver, executors, partitions, lazy evaluation, and the difference between a transformation and an action.",subs:[
-  {id:"p2-spark-1",t:"Partitions: how Spark splits the work",mins:15,
+  {id:"p2-spark-1",t:"Partitions: how Spark splits the work",mins:15,verified:{date:"2026-09-25",level:"run",note:"Code runs and asserts correctly (CI). Driver/executor/partition concepts are standard Spark fundamentals, not a platform fact that expires."},
    learn:["Your T-SQL query runs on one server that picks an execution plan. Spark splits data into partitions and hands them to executors that work in parallel, while a driver plans the job and coordinates. Too few partitions waste cores; too many add overhead."],
    try:[{lang:"python",label:"Python, either platform",code:R`from pyspark.sql import functions as F
 
@@ -200,7 +201,7 @@ df = spark.range(0, 1_000_000)
    prove:["You can say what the driver does and what the executors do.","You can explain why 200 partitions for a million rows is probably too many."],
    quiz:[["Which part runs your tasks in parallel, the driver or the executors?","The executors run tasks on partitions in parallel. The driver plans the job and coordinates them."]],
    watch:"The RDD-based getNumPartitions call may not be available on Databricks serverless compute, which is why this lesson uses spark_partition_id instead."},
-  {id:"p2-spark-2",t:"Lazy evaluation: transformations versus actions",mins:20,
+  {id:"p2-spark-2",t:"Lazy evaluation: transformations versus actions",mins:20,verified:{date:"2026-09-25",level:"run",note:"Code runs and asserts correctly (CI). Lazy evaluation is a standard Spark fundamental, not a platform fact that expires."},
    learn:["Transformations such as filter, select, groupBy and join only describe what you want. Nothing runs until an action such as show(), count() or a write asks for a result. Spark then optimises the whole plan at once, a bit like SQL Server building one execution plan for a whole query."],
    try:[{lang:"python",label:"Python, either platform",code:R`from pyspark.sql import functions as F
 
@@ -216,7 +217,7 @@ plan.show()                                                   # action: the job 
 
  /* ---------------------------------------------------------------- */
  {id:"p2-dbx",t:"Sign up for Databricks Free Edition",d:"Set up a workspace, create sample data in code, and run one query in both SQL and PySpark.",subs:[
-  {id:"p2-dbx-1",t:"Create your Free Edition workspace",mins:15,
+  {id:"p2-dbx-1",t:"Create your Free Edition workspace",mins:15,verified:{date:"2026-09-24",level:"docs",note:"Serverless-only, restricted outbound internet and the workspace.default catalog/schema checked against docs.databricks.com/aws/en/getting-started/free-edition-limitations."},
    learn:["Databricks Free Edition is a no-cost workspace for learning. It is serverless-only, so there are no clusters to size or stop. Unity Catalog is already set up: tables live in a three-level name, catalog.schema.table, and your default is usually workspace.default. Outbound internet is restricted, and accounts cannot be used commercially."],
    try:[{p:"Sign up from the Databricks Free Edition page, create a notebook and attach it to Serverless. Then run this in a SQL cell."},
         {lang:"sql",label:"SQL, Databricks",code:R`SELECT current_catalog() AS catalog, current_schema() AS schema;`}],
@@ -225,7 +226,7 @@ plan.show()                                                   # action: the job 
    prove:["A notebook attached to Serverless returns your catalog and schema.","You can read a fully qualified name such as workspace.default.sales_raw."],
    watch:"Free Edition accounts that are inactive for a long time may be deleted, and there is no support agreement. Keep your notebooks in a Git repo.",
    links:[["Free Edition limitations","https://docs.databricks.com/aws/en/getting-started/free-edition-limitations"],["Databricks Free Edition","https://www.databricks.com/learn/free-edition"]]},
-  {id:"p2-dbx-2",t:"Create sample data in code",mins:15,
+  {id:"p2-dbx-2",t:"Create sample data in code",mins:15,verified:{date:"2026-09-25",level:"run",note:"Code runs and asserts correctly (CI): 7 rows after overwrite, 14 after the append demo, back to 7 after resetting."},
    learn:["You will not download anything. You create a small sales dataset in code, with mess on purpose: a duplicate order and a missing amount. It becomes your Bronze table for the rest of the phase, on either platform."],
    try:[{lang:"python",label:"Python, either platform",code:R`from pyspark.sql import functions as F
 
@@ -251,7 +252,7 @@ print(spark.table("sales_raw").count())    # 14: every row doubled`},
         {p:"Now run the overwrite cell again to reset. This is why Bronze loads need a plan for reruns."}],
    prove:["SELECT COUNT(*) FROM sales_raw returns 7 after a clean overwrite."],
    watch:"On Fabric, attach a Lakehouse to the notebook first, or saveAsTable has nowhere to write."},
-  {id:"p2-dbx-3",t:"Same question in SQL and PySpark",mins:15,
+  {id:"p2-dbx-3",t:"Same question in SQL and PySpark",mins:15,verified:{date:"2026-09-25",level:"run",note:"Code runs correctly (CI). The %sql/%%sql cell-magic distinction between Databricks and Fabric is not independently doc-checked this session."},
    learn:["Spark SQL is real SQL. The DataFrame API expresses the same plan in Python. Both go through the same optimiser, so use whichever reads better. To switch a notebook cell to SQL, start it with %sql on Databricks or %%sql on Fabric."],
    try:[{lang:"sql",label:"SQL cell",code:R`SELECT product, SUM(amount) AS revenue, COUNT(*) AS orders
 FROM sales_raw
@@ -272,7 +273,7 @@ ORDER BY revenue DESC`},
 
  /* ---------------------------------------------------------------- */
  {id:"p2-df",t:"Learn the core DataFrame calls",d:"select, filter, withColumn, groupBy, join and window, each mapped to the T-SQL clause you already use.",subs:[
-  {id:"p2-df-1",t:"select, filter, withColumn and groupBy",mins:25,
+  {id:"p2-df-1",t:"select, filter, withColumn and groupBy",mins:25,verified:{date:"2026-09-25",level:"run",note:"Code runs and asserts the exact documented output (CI): C001 (2, 87500) then C003 (1, 71000)."},
    learn:["Each DataFrame call is a T-SQL clause in disguise. select is the SELECT list, filter is WHERE, withColumn adds a computed column, groupBy().agg() is GROUP BY, and a filter after agg is HAVING. Chain them top to bottom; each call returns a new DataFrame."],
    try:[{lang:"python",label:"Python, either platform",code:R`from pyspark.sql import functions as F
 
@@ -288,7 +289,7 @@ result.show()`}],
    expect:"C001 with 2 orders and 87500 first, then C003 with 1 order and 71000.",
    brk:"Move the .filter(F.col('spend') > 10000) line above .agg(...) and run it. It fails because spend does not exist yet. It is the same reason HAVING cannot be a WHERE.",
    prove:["You can translate each line of the chain back into a T-SQL clause."]},
-  {id:"p2-df-2",t:"Joins",mins:20,
+  {id:"p2-df-2",t:"Joins",mins:20,verified:{date:"2026-09-25",level:"run",note:"Code runs and asserts correctly (CI): C004 has no city after the left join; the duplicated-customers join returns more rows."},
    learn:["A join needs a key and a type. Passing the key as a column name string keeps one copy of the column, which avoids ambiguous-column errors. The default type is inner, as in T-SQL."],
    try:[{lang:"python",label:"Python, either platform",code:R`customers = spark.createDataFrame(
   [("C001", "Bengaluru"), ("C002", "Mysuru"), ("C003", "Chennai"), ("C005", "Pune")],
@@ -304,7 +305,7 @@ s = spark.table("sales_raw")
 print(s.join(customers.union(customers), "customer_id", "left").count())   # more than 7`}],
    prove:["You can predict the row count of a left join before you run it."],
    quiz:[["What kind of join does join(customers, 'customer_id') run when you skip the type?","An inner join."]]},
-  {id:"p2-df-3",t:"Window functions for deduplication",mins:20,
+  {id:"p2-df-3",t:"Window functions for deduplication",mins:20,verified:{date:"2026-09-25",level:"run",note:"Code runs and asserts correctly (CI): deduplication leaves exactly 6 rows."},
    learn:["Window functions work like OVER (PARTITION BY ... ORDER BY ...) in T-SQL. Number the rows inside each key, then keep row 1. It is the standard way to deduplicate before a MERGE."],
    try:[{lang:"python",label:"Python, either platform",code:R`from pyspark.sql import functions as F
 from pyspark.sql.window import Window
@@ -322,14 +323,14 @@ print(dedup.count())    # 6: the duplicate order 5 is gone`}],
 
  /* ---------------------------------------------------------------- */
  {id:"p2-delta",t:"Break a Delta table on purpose",d:"Run an UPDATE, time-travel to the earlier version, then try a mismatched-schema write and watch it be rejected.",subs:[
-  {id:"p2-delta-1",t:"What Delta adds to Parquet",mins:15,
+  {id:"p2-delta-1",t:"What Delta adds to Parquet",mins:15,verified:{date:"2026-09-25",level:"run",note:"Code runs correctly (CI): DESCRIBE HISTORY/DETAIL return real output. The transaction-log concept is a foundational, evergreen Delta Lake fact."},
    learn:["A Delta table is Parquet files plus a transaction log in a _delta_log folder. The log gives you ACID transactions, versions and time travel: the same promises you rely on from SQL Server, kept on files."],
    try:[{lang:"sql",label:"SQL cell",code:R`DESCRIBE HISTORY sales_raw;
 DESCRIBE DETAIL sales_raw;`}],
    expect:"History lists numbered versions with the operation for each. Detail shows the format (delta) and the number of files.",
    brk:"Re-run the write cell from the sample-data lesson, then run DESCRIBE HISTORY again. A new version appears, and the previous data is still there in the older version.",
    prove:["You can point to the version list and explain what a version is."]},
-  {id:"p2-delta-2",t:"UPDATE, then time travel",mins:20,
+  {id:"p2-delta-2",t:"UPDATE, then time travel",mins:20,verified:{date:"2026-09-25",level:"run",note:"Code runs and asserts correctly (CI): UPDATE, VERSION AS OF and RESTORE all produce exactly the documented values."},
    learn:["Because every change is a new version, you can read the table as it was, or roll back. This is your safety net when an UPDATE goes wrong."],
    try:[{p:"First note the latest version from DESCRIBE HISTORY. Then change one row, and read it before and after."},
         {lang:"sql",label:"SQL cell",code:R`UPDATE sales_raw SET amount = amount * 10 WHERE order_id = 1;
@@ -343,7 +344,7 @@ SELECT order_id, amount FROM sales_raw VERSION AS OF 1 WHERE order_id = 1;`}],
 RESTORE TABLE sales_raw TO VERSION AS OF 1;             -- use the version before the mistake`}],
    prove:["You recovered the original amounts with RESTORE."],
    watch:"Time travel is limited by log and file retention. VACUUM removes old files, after which old versions can no longer be read."},
-  {id:"p2-delta-3",t:"Schema enforcement and evolution",mins:20,
+  {id:"p2-delta-3",t:"Schema enforcement and evolution",mins:20,verified:{date:"2026-09-25",level:"run",note:"Code runs and asserts correctly (CI): the plain append fails, the mergeSchema append succeeds, and the reset restores the original schema."},
    learn:["Delta refuses writes that do not match the table's schema. That protects you from silent upstream changes. When you do want the schema to change, you say so explicitly."],
    try:[{lang:"python",label:"Python, either platform",code:R`from pyspark.sql import functions as F
 
@@ -363,7 +364,7 @@ extra.write.mode("append").format("delta").saveAsTable("sales_raw")   # fails: e
 
  /* ---------------------------------------------------------------- */
  {id:"p2-merge",t:"Write a Delta MERGE",d:"Build the upsert first, then extend it into a Type 2 slowly changing dimension.",subs:[
-  {id:"p2-merge-1",t:"Build an upsert",mins:25,
+  {id:"p2-merge-1",t:"Build an upsert",mins:25,verified:{date:"2026-09-25",level:"run",note:"Code runs and asserts correctly (CI): 8 rows after the MERGE, order 3 at 16500, unchanged on a rerun. The docs.delta.io link is not independently re-checked this session."},
    learn:["MERGE compares a source set with a target table on a key, updates the matches and inserts the rest. It is the same idea as T-SQL MERGE. Silver tables are usually built this way so a rerun does not create duplicates."],
    try:[{lang:"sql",label:"SQL cells: create Silver, a source, then merge",code:R`CREATE OR REPLACE TABLE sales_silver AS
 SELECT order_id, customer_id, order_date, product, qty, amount
@@ -387,7 +388,7 @@ WHEN NOT MATCHED THEN INSERT *;`}],
    brk:"Run the same MERGE a second time. Nothing changes: no duplicates and no errors. That repeatable behaviour is the reason to use MERGE. Then run DESCRIBE HISTORY sales_silver and read the merge metrics.",
    prove:["SELECT COUNT(*) FROM sales_silver returns 8, both after the first run and after the second."],
    links:[["Delta: updates and merges","https://docs.delta.io/latest/delta-update.html"]]},
-  {id:"p2-merge-2",t:"Break it: duplicate keys in the source",mins:15,
+  {id:"p2-merge-2",t:"Break it: duplicate keys in the source",mins:15,verified:{date:"2026-09-25",level:"run",note:"Code runs and asserts correctly (CI): the duplicate-key MERGE raises, the deduplicated-source MERGE succeeds."},
    learn:["A MERGE fails when one target row matches more than one source row, because the result would be ambiguous. T-SQL raises a similar error. The fix is always to deduplicate the source on the merge key first."],
    try:[{lang:"sql",label:"SQL cell",code:R`CREATE OR REPLACE TEMP VIEW sales_updates_dupes AS
 SELECT * FROM VALUES
@@ -416,7 +417,7 @@ WHEN NOT MATCHED THEN INSERT *
 """)`}],
    prove:["You can explain why the first MERGE failed and what your fix guarantees."],
    watch:"Deduplicate on the merge key with a deliberate tie-breaker such as the latest timestamp. Picking an arbitrary row can silently load the wrong value."},
-  {id:"p2-merge-3",t:"The Python DeltaTable API",mins:15,
+  {id:"p2-merge-3",t:"The Python DeltaTable API",mins:15,verified:{date:"2026-09-25",level:"run",note:"Code runs correctly (CI): the DeltaTable merge produces the same result as the earlier SQL MERGE."},
    learn:["The same MERGE can be written in Python with DeltaTable. Use it when the logic needs loops or conditions around the merge, and use SQL when it reads better."],
    try:[{lang:"python",label:"Python, either platform",code:R`from delta.tables import DeltaTable
 
@@ -434,7 +435,7 @@ src = spark.table("sales_updates")
    .execute())`}],
    prove:["You can write the same merge in SQL and in Python."],
    watch:"If your environment rejects the DeltaTable import, use the SQL form. The outcome is identical."},
-  {id:"p2-merge-4",t:"Type 2 slowly changing dimension",mins:30,
+  {id:"p2-merge-4",t:"Type 2 slowly changing dimension",mins:30,verified:{date:"2026-09-25",level:"run",note:"Code runs and asserts correctly (CI): C001 gets a new current row, C004 is added, exactly one current row per customer, a rerun changes nothing."},
    learn:["A Type 2 dimension keeps history. When a tracked attribute changes, you close the old row and add a new current row. It is the classic Kimball pattern you have built in SSIS. Here it takes two set-based statements."],
    try:[{lang:"sql",label:"SQL: seed the dimension and a batch of changes",code:R`CREATE OR REPLACE TABLE dim_customer AS
 SELECT * FROM VALUES
@@ -472,7 +473,7 @@ SELECT * FROM dim_customer ORDER BY customer_id, effective_from;`}],
 
  /* ---------------------------------------------------------------- */
  {id:"p2-maint",t:"Maintain the table",d:"Compact small files with OPTIMIZE and clear old versions with VACUUM.",subs:[
-  {id:"p2-maint-1",t:"The small files problem",mins:20,
+  {id:"p2-maint-1",t:"The small files problem",mins:20,verified:{date:"2026-09-25",level:"run",note:"Code runs and asserts correctly (CI): 20 small appends leave roughly 20 files for 200 rows."},
    learn:["Every write adds files. Many small appends leave thousands of tiny files, and queries slow down because Spark has to open each one. OPTIMIZE compacts them into fewer, larger files."],
    try:[{lang:"python",label:"Python, either platform: create 20 tiny appends",code:R`from pyspark.sql import functions as F
 
@@ -488,7 +489,7 @@ for i in range(20):
    expect:"numFiles is around 20 for a table that holds only 200 small rows.",
    brk:"Think about the same pattern at scale: a job that appends every minute for a month. Nothing fails, it just gets slower each day. That is why maintenance is part of the design, not an afterthought.",
    prove:["You can explain the small files problem in one sentence."]},
-  {id:"p2-maint-2",t:"OPTIMIZE and VACUUM",mins:20,
+  {id:"p2-maint-2",t:"OPTIMIZE and VACUUM",mins:20,verified:{date:"2026-09-25",level:"run",note:"Code runs and asserts correctly (CI): OPTIMIZE reduces numFiles, VACUUM RETAIN 0 HOURS is refused. Fabric's V-Order-off default is doc-checked (CLAUDE.md, 24 Sep 2026); the Databricks liquid-clustering recommendation is not independently re-checked this session."},
    learn:["OPTIMIZE rewrites many small files into fewer large ones. VACUUM deletes files that are no longer referenced by the table, but only those older than the retention window, 7 days by default."],
    try:[{lang:"sql",label:"SQL cell",code:R`OPTIMIZE sales_small_files;
 DESCRIBE DETAIL sales_small_files;        -- numFiles drops
@@ -502,7 +503,7 @@ VACUUM sales_small_files DRY RUN;         -- lists what it would delete, deletes
 
  /* ---------------------------------------------------------------- */
  {id:"p2-auto",t:"Ingest files incrementally with Auto Loader",d:"Let the platform track which files it has already loaded (Databricks).",subs:[
-  {id:"p2-auto-1",t:"The idea: a checkpoint remembers files",mins:15,
+  {id:"p2-auto-1",t:"The idea: a checkpoint remembers files",mins:15,verified:{date:"2026-09-25",level:"unverified",note:"Uses dbutils and Unity Catalog volumes (Databricks-only); skipped in CI (no real Databricks workspace available) and not independently doc-checked this session. Check the current docs before relying on it."},
    learn:["In SSIS you kept a control table of processed files. Auto Loader keeps that state for you in a checkpoint. It finds new files in a folder and loads each one once. Auto Loader is a Databricks feature. In Fabric, comparable patterns are a Copy job with incremental settings or a Structured Streaming file source."],
    try:[{lang:"python",label:"Python, Databricks: create a volume and land one file",code:R`spark.sql("CREATE VOLUME IF NOT EXISTS workspace.default.landing")
 base = "/Volumes/workspace/default/landing"
@@ -513,7 +514,7 @@ display(dbutils.fs.ls(f"{base}/incoming"))`}],
    expect:"One file, orders_1.csv, listed in the incoming folder.",
    brk:"Open the volume in the Catalog explorer and find the file there. Volumes are Unity Catalog's home for files, the way tables are for rows.",
    prove:["Your volume holds orders_1.csv."]},
-  {id:"p2-auto-2",t:"Run Auto Loader twice",mins:25,
+  {id:"p2-auto-2",t:"Run Auto Loader twice",mins:25,verified:{date:"2026-09-25",level:"unverified",note:"Uses dbutils and Auto Loader's cloudFiles source (Databricks-only); skipped in CI (no real Databricks workspace available) and not independently doc-checked this session. Check the current docs before relying on it."},
    learn:["With the trigger set to availableNow, Auto Loader processes everything new and then stops. That works on serverless compute and behaves like a scheduled batch load."],
    try:[{lang:"python",label:"Python, Databricks",code:R`def load_new_files():
     (spark.readStream.format("cloudFiles")
@@ -545,7 +546,7 @@ print(spark.table("orders_bronze").count())     # 8: every file loaded a second 
 
  /* ---------------------------------------------------------------- */
  {id:"p2-b02",t:"Rebuild Build 02 in a Fabric notebook",d:"Same transform as the clinic no-show build, in PySpark on Delta tables, with a row-count gate at the end.",subs:[
-  {id:"p2-b02-1",t:"Create the Bronze appointments table",mins:15,
+  {id:"p2-b02-1",t:"Create the Bronze appointments table",mins:15,verified:{date:"2026-09-25",level:"run",note:"Code runs and asserts correctly (CI): 305 rows, synthetic data only, no real patient data."},
    learn:["Build 02 tracked clinic no-shows. You will rebuild its transform in code. First, generate a synthetic Bronze table with a few duplicates. It contains no real patient data, only made-up ids."],
    try:[{lang:"python",label:"Python, Fabric notebook with a Lakehouse attached",code:R`import random, datetime as dt
 from pyspark.sql import functions as F
@@ -565,7 +566,7 @@ print(spark.table("brz_appointments").count())`}],
    expect:"A count of 305.",
    brk:"Change random.seed(7) to another number and rerun. The data changes but stays reproducible for a given seed, which is what makes a test dataset useful.",
    prove:["brz_appointments exists with 305 rows."]},
-  {id:"p2-b02-2",t:"Silver: type, deduplicate and flag",mins:20,
+  {id:"p2-b02-2",t:"Silver: type, deduplicate and flag",mins:20,verified:{date:"2026-09-25",level:"run",note:"Code runs and asserts correctly (CI): 305 rows in Bronze, 300 in Silver after deduplication."},
    learn:["Silver is where you fix types, drop duplicates and add helper columns. The window function from the earlier lesson does the deduplication."],
    try:[{lang:"python",label:"Python, Fabric",code:R`from pyspark.sql import functions as F
 from pyspark.sql.window import Window
@@ -583,7 +584,7 @@ print(bronze.count(), silver.count())     # 305 300`}],
    expect:"305 rows in Bronze and 300 in Silver: the five duplicates are gone.",
    brk:"Remove the deduplication lines and rerun. Silver now equals Bronze and the no-show rate is skewed by the duplicates. Put the lines back.",
    prove:["slv_appointments has 300 rows with a weekday and an is_no_show column."]},
-  {id:"p2-b02-3",t:"Gold and a row-count gate",mins:20,
+  {id:"p2-b02-3",t:"Gold and a row-count gate",mins:20,verified:{date:"2026-09-25",level:"run",note:"Code runs and asserts correctly (CI): the gate passes, gld_no_show_rate has one row per provider/weekday."},
    learn:["Gold holds business-ready aggregates. A quality gate fails the run loudly when the numbers look wrong, instead of publishing them quietly."],
    try:[{lang:"python",label:"Python, Fabric",code:R`from pyspark.sql import functions as F
 
@@ -607,7 +608,7 @@ print("Gate passed:", b, "bronze rows,", s, "silver rows")`}],
 
  /* ---------------------------------------------------------------- */
  {id:"p2-plan",t:"Read one Spark execution plan",d:"Find a shuffle and explain why it costs time.",subs:[
-  {id:"p2-plan-1",t:"Spot the shuffle",mins:20,
+  {id:"p2-plan-1",t:"Spot the shuffle",mins:20,verified:{date:"2026-09-25",level:"run",note:"Code runs and asserts correctly (CI): the groupBy plan shows Exchange, the plain filter/select plan does not."},
    learn:["A shuffle moves data between executors so that rows with the same key end up together. groupBy and joins need one. It is usually the most expensive step in a Spark job, a bit like a sort that spills in SQL Server. In a physical plan, look for Exchange."],
    try:[{lang:"python",label:"Python, either platform",code:R`from pyspark.sql import functions as F
 
@@ -750,7 +751,12 @@ function renderStatic(){
     return "<tr><td>"+esc(r[0])+"</td><td>"+esc(r[1])+'</td><td><button type="button" class="jump" data-go="p'+r[2]+'">Phase '+r[2]+"</button></td></tr>";
   }).join("");
   $("#freshRows").innerHTML=FRESH.map(function(r){
-    return "<tr><td>"+esc(r[0])+"</td><td>"+esc(r[1])+"</td><td>"+esc(r[2])+"</td></tr>";
+    var status=r[3],checkedOn=r[4];
+    var statusLabel=status==="docs"?"Checked against docs":"Not verified";
+    var stale=status==="unverified"||(checkedOn&&Math.floor((Date.now()-Date.parse(checkedOn))/86400000)>VERIFIED_STALE_DAYS);
+    return "<tr><td>"+esc(r[0])+"</td><td>"+esc(r[1])+"</td><td>"+esc(r[2])+"</td>"+
+      '<td class="'+(stale?"fresh-stale":"")+'">'+esc(statusLabel)+"</td>"+
+      "<td>"+(checkedOn?esc(checkedOn):"—")+"</td></tr>";
   }).join("");
   $("#stretchList").innerHTML=STRETCH.map(function(s,i){
     return '<div class="st spot rv soft" style="--d:'+(i%2?".12":"0")+'s"><h3>'+esc(s.name)+"</h3><p>"+esc(s.desc)+'</p><div class="chips">'+s.chips.map(function(c){return '<span class="chip">'+esc(c)+"</span>";}).join("")+"</div></div>";
@@ -768,6 +774,18 @@ function blocksHTML(arr){
 }
 function textOrBlocks(x){return typeof x==="string"?"<p>"+esc(x)+"</p>":blocksHTML(x);}
 
+var VERIFIED_STALE_DAYS=45;
+var VERIFIED_LABEL={run:"Verified by running the code",docs:"Checked against docs",unverified:"Not verified"};
+function verifiedHTML(v){
+  if(!v||!v.date){return "";}
+  var ageDays=Math.floor((Date.now()-Date.parse(v.date))/86400000);
+  var stale=v.level==="unverified"||ageDays>VERIFIED_STALE_DAYS;
+  var label=VERIFIED_LABEL[v.level]||"Verified";
+  return '<p class="verified-line'+(stale?" stale":"")+'"><b>'+esc(label)+"</b> "+esc(v.date)+
+    (v.note?" — "+esc(v.note):"")+
+    (stale?' <span class="verified-flag">Check before relying on this.</span>':"")+
+    "</p>";
+}
 function lessonHTML(s){
   var quiz=(s.quiz||[]).map(function(q){return '<details class="q"><summary>'+esc(q[0])+"</summary><p>"+esc(q[1])+"</p></details>";}).join("");
   var proof=s.prove.map(function(x){return "<li>"+esc(x)+"</li>";}).join("");
@@ -778,6 +796,7 @@ function lessonHTML(s){
    '<section class="ls brk"><h5>Break it</h5>'+textOrBlocks(s.brk)+"</section>"+
    '<section class="ls prove"><h5>Prove it</h5><ul class="proof">'+proof+"</ul>"+quiz+"</section>"+
    (s.watch?'<p class="gotcha"><b>Watch out.</b> '+esc(s.watch)+"</p>":"")+links+
+   verifiedHTML(s.verified)+
    '<div class="lf"><label class="lchk"><input type="checkbox" data-lesson="'+s.id+'"><span class="box" aria-hidden="true"></span><span>Mark this lesson done</span></label>'+
    '<span class="lf-actions"><button type="button" class="mini" data-notes-scope="lesson:'+s.id+'">Add note<i class="notes-dot" aria-hidden="true"></i></button>'+
    '<button type="button" class="mini" data-next="'+s.id+'">Next lesson</button></span></div></div>';
@@ -1032,10 +1051,76 @@ function exportNotesMarkdown(){
 }
 function exportNotesJSON(){downloadBlob("notes.json",JSON.stringify(notesDoc,null,2),"application/json");}
 
+/* ================================================================== */
+/* Backups: a combined progress+notes download/restore, distinct from  */
+/* the older single-purpose export/import above; plus safety snapshots */
+/* taken automatically before any destructive action.                  */
+/* ================================================================== */
+var SAFETY_KEY="ssis-to-fabric-path-safety";
+var SAFETY_MAX_BYTES=4*1024*1024;
+function loadSafetySnapshots(){
+  try{var raw=JSON.parse(window.localStorage.getItem(SAFETY_KEY)||"[]");return Array.isArray(raw)?raw:[];}catch(e){return [];}
+}
+function takeSafetySnapshot(label){
+  try{
+    var snaps=loadSafetySnapshots();
+    snaps.unshift({at:Date.now(),label:label,items:JSON.parse(JSON.stringify(items)),notes:JSON.parse(JSON.stringify(notesDoc.notes))});
+    snaps=snaps.slice(0,3);
+    var json=JSON.stringify(snaps);
+    while(snaps.length>1&&json.length>SAFETY_MAX_BYTES){snaps.pop();json=JSON.stringify(snaps);}
+    if(json.length<=SAFETY_MAX_BYTES){window.localStorage.setItem(SAFETY_KEY,json);}
+  }catch(e){}
+}
+
+function downloadBackup(){
+  var payload={
+    v:1,exportedAt:new Date().toISOString(),
+    progress:{v:1,items:items,meta:{startDate:meta.startDate||null}},
+    notes:{v:1,notes:notesDoc.notes}
+  };
+  downloadBlob("learning-backup-"+istDateKey(Date.now())+".json",JSON.stringify(payload,null,2),"application/json");
+  meta.lastBackupAt=Date.now();persistMeta();updateSyncUI();
+}
+
+function validateBackupPayload(parsed){
+  if(!parsed||typeof parsed!=="object"){return null;}
+  var progressItems=parsed.progress&&parsed.progress.items&&typeof parsed.progress.items==="object"?parsed.progress.items:{};
+  var notesIn=parsed.notes&&parsed.notes.notes&&typeof parsed.notes.notes==="object"?parsed.notes.notes:{};
+  var okItems={},itemsSkipped=0;
+  Object.keys(progressItems).forEach(function(id){
+    var v=progressItems[id];
+    if(!KNOWN_IDS[id]||!Array.isArray(v)||(v[0]!==0&&v[0]!==1)||typeof v[1]!=="number"){itemsSkipped++;return;}
+    okItems[id]=v;
+  });
+  var okNotes={},notesSkipped=0;
+  Object.keys(notesIn).forEach(function(scope){
+    var rec=notesIn[scope];
+    if(!isValidScope(scope)||!rec||typeof rec.body!=="string"||rec.body.length>50000){notesSkipped++;return;}
+    okNotes[scope]=rec;
+  });
+  return {items:okItems,notes:okNotes,itemsCount:Object.keys(okItems).length,notesCount:Object.keys(okNotes).length,itemsSkipped:itemsSkipped,notesSkipped:notesSkipped};
+}
+
+function applyRestore(validated){
+  takeSafetySnapshot("before restore");
+  mergeItems(validated.items);
+  rebuildDone();persistItems();syncChecks();refresh(true);
+  Object.keys(validated.notes).forEach(function(scope){
+    var incoming=validated.notes[scope];
+    var existing=notesDoc.notes[scope];
+    var at=Number(incoming.localUpdatedAt)||Date.now();
+    if(existing&&existing.localUpdatedAt>=at){return;}
+    setNoteBody(scope,incoming.body);
+  });
+  progressChanged();
+  updateNoteDots();
+}
+
 function bindIO(){
   var panel=$("#ioPanel"),title=$("#ioTitle"),hint=$("#ioHint"),text=$("#ioText"),primary=$("#ioPrimary"),closeBtn=$("#ioClose");
   var exportBtn=$("#exportProgress"),importBtn=$("#importProgress");
   var mode="export",opener=null;
+  var pendingRestore=null,pendingSafetyIndex=-1;
   function writeClipboard(s,onDone){
     try{
       if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(s).then(function(){onDone(true);},function(){onDone(false);});return;}
@@ -1044,6 +1129,7 @@ function bindIO(){
   }
   function openIO(m,btn){
     mode=m;opener=btn||document.activeElement;
+    pendingRestore=null;pendingSafetyIndex=-1;
     if(mode==="export"){
       title.textContent="Export progress";
       text.value=JSON.stringify(done,null,2);
@@ -1059,6 +1145,27 @@ function bindIO(){
       text.readOnly=false;
       primary.textContent="Import";
       hint.textContent="Paste notes JSON exported from this page, then select Import. Only valid scopes (p0-p5, lesson:<id>, scratch) within the 50,000 character limit are accepted; a note already here for the same scope is replaced only if the import is newer.";
+    }else if(mode==="restore-backup"){
+      title.textContent="Restore from backup";
+      text.value="";
+      text.readOnly=false;
+      primary.textContent="Preview";
+      hint.textContent="Paste a learning-backup-*.json file's contents, then select Preview. Nothing is applied until you confirm.";
+    }else if(mode==="restore-safety"){
+      var snaps=loadSafetySnapshots();
+      title.textContent="Restore a safety snapshot";
+      if(!snaps.length){
+        text.value="";text.readOnly=true;primary.textContent="Restore";primary.disabled=true;
+        hint.textContent="No safety snapshots saved yet. One is taken automatically before any import, restore, conflict resolution or device-clearing action.";
+      }else{
+        primary.disabled=false;
+        var s=snaps[0];
+        pendingSafetyIndex=0;
+        text.value=JSON.stringify({at:new Date(s.at).toISOString(),label:s.label,items:s.items,notes:s.notes},null,2);
+        text.readOnly=true;
+        primary.textContent="Restore this snapshot";
+        hint.textContent="Most recent of "+snaps.length+" saved snapshot"+(snaps.length===1?"":"s")+": "+fmtIST(s.at)+" ("+(s.label||"")+"). Restoring merges it in — latest per item/note wins, nothing already newer is overwritten.";
+      }
     }else{
       title.textContent="Import progress";
       text.value="";
@@ -1068,16 +1175,18 @@ function bindIO(){
     }
     panel.hidden=false;
     text.focus();
-    if(mode==="export"){text.select();}
+    if(mode==="export"||mode==="restore-safety"){text.select();}
   }
   function closeIO(){
     panel.hidden=true;
+    primary.disabled=false;
     if(opener&&opener.focus){opener.focus();}
   }
   function doImport(){
     var parsed;
     try{parsed=JSON.parse(text.value);}catch(e){hint.textContent="That is not valid JSON.";return;}
     if(!parsed||typeof parsed!=="object"||Array.isArray(parsed)){hint.textContent="Expected a JSON object.";return;}
+    takeSafetySnapshot("before import progress");
     var added=0,skipped=0;
     Object.keys(parsed).forEach(function(id){
       if(!KNOWN_IDS[id]){skipped++;return;}
@@ -1092,6 +1201,7 @@ function bindIO(){
     try{parsed=JSON.parse(text.value);}catch(e){hint.textContent="That is not valid JSON.";return;}
     var incoming=parsed&&parsed.notes&&typeof parsed.notes==="object"?parsed.notes:null;
     if(!incoming){hint.textContent="Expected {v:1, notes:{...}} as exported from this page.";return;}
+    takeSafetySnapshot("before import notes");
     var added=0,skipped=0;
     Object.keys(incoming).forEach(function(scope){
       var rec=incoming[scope];
@@ -1106,15 +1216,50 @@ function bindIO(){
     closeIO();
     toast("Imported "+added+" note"+(added===1?"":"s")+(skipped?", skipped "+skipped:"")+".");
   }
+  function doRestoreBackupStep(){
+    if(!pendingRestore){
+      var parsed;
+      try{parsed=JSON.parse(text.value);}catch(e){hint.textContent="That is not valid JSON.";return;}
+      var validated=validateBackupPayload(parsed);
+      if(!validated){hint.textContent="Expected a backup file as downloaded from this page (Download backup).";return;}
+      pendingRestore=validated;
+      text.readOnly=true;
+      primary.textContent="Confirm restore";
+      hint.textContent="Found "+validated.itemsCount+" progress item"+(validated.itemsCount===1?"":"s")+" and "+validated.notesCount+" note"+(validated.notesCount===1?"":"s")+
+        (validated.itemsSkipped||validated.notesSkipped?" (skipped "+validated.itemsSkipped+" unrecognised item(s), "+validated.notesSkipped+" invalid note(s))":"")+
+        ". Merges in — latest per item/note wins, nothing already newer is overwritten. Select Confirm restore to apply.";
+      return;
+    }
+    applyRestore(pendingRestore);
+    closeIO();
+    toast("Restored "+pendingRestore.itemsCount+" item"+(pendingRestore.itemsCount===1?"":"s")+" and "+pendingRestore.notesCount+" note"+(pendingRestore.notesCount===1?"":"s")+".");
+  }
+  function doRestoreSafety(){
+    var snaps=loadSafetySnapshots();
+    if(pendingSafetyIndex<0||!snaps[pendingSafetyIndex]){return;}
+    var s=snaps[pendingSafetyIndex];
+    // The snapshot is our own previously-saved trusted data (not pasted
+    // text), so it goes through the same validation as a backup restore
+    // for consistency, then applies in one step.
+    var validated=validateBackupPayload({progress:{items:s.items},notes:{notes:s.notes}});
+    applyRestore(validated);
+    closeIO();
+    toast("Restored the snapshot from "+fmtIST(s.at)+".");
+  }
   exportBtn.addEventListener("click",function(){openIO("export",exportBtn);});
   importBtn.addEventListener("click",function(){openIO("import",importBtn);});
   $("#menuImportNotes").addEventListener("click",function(){openIO("notes-import",$("#menuImportNotes"));});
   $("#menuExportNotesMd").addEventListener("click",function(){exportNotesMarkdown();});
   $("#menuExportNotesJson").addEventListener("click",function(){exportNotesJSON();});
+  $("#menuDownloadBackup").addEventListener("click",function(){downloadBackup();toast("Backup downloaded.");});
+  $("#menuRestoreBackup").addEventListener("click",function(){openIO("restore-backup",$("#menuRestoreBackup"));});
+  $("#menuRestoreSafety").addEventListener("click",function(){openIO("restore-safety",$("#menuRestoreSafety"));});
   closeBtn.addEventListener("click",closeIO);
   primary.addEventListener("click",function(){
     if(mode==="export"){writeClipboard(text.value,function(ok){hint.textContent=ok?"Copied to your clipboard.":"Could not copy automatically. Select the text below and copy it.";});}
     else if(mode==="notes-import"){doImportNotes();}
+    else if(mode==="restore-backup"){doRestoreBackupStep();}
+    else if(mode==="restore-safety"){doRestoreSafety();}
     else{doImport();}
   });
   panel.addEventListener("click",function(e){if(e.target===panel){closeIO();}});
@@ -1180,7 +1325,40 @@ function mergeItems(remoteItems){
   return changed;
 }
 
-function runSync(){
+/* Session expiry: on a 401/expired-JWT error during a save, try
+   refreshSession() exactly once, then retry that same save. If the
+   refresh itself fails, the change stays dirty in localStorage (never
+   cleared), the "expired" sync state shows "Session expired..." in the
+   pill, and the login card reappears as an overlay over the still-visible
+   app so the visitor can sign back in without losing anything — pullAll()
+   then merges the dirty local changes with whatever's on the server,
+   the same as any other fresh sign-in. */
+var sessionExpired=false;
+function looksLikeExpiredSession(err){
+  if(!err){return false;}
+  var status=err.status||err.statusCode;
+  var code=err.code||"";
+  var msg=(err.message||"").toLowerCase();
+  if(status===401){return true;}
+  if(code==="PGRST301"){return true;}
+  if(msg.indexOf("jwt")>-1&&(msg.indexOf("expired")>-1||msg.indexOf("invalid")>-1)){return true;}
+  return false;
+}
+function markSessionExpired(){
+  if(sessionExpired){return;}
+  sessionExpired=true;
+  hasPulledThisSession=false;
+  setSyncState("expired");
+  if(window.APP_AUTH_SHOW_EXPIRED){
+    window.APP_AUTH_SHOW_EXPIRED("Session expired. Your changes are safe on this device. Sign in to sync.");
+  }
+}
+function clearSessionExpired(){sessionExpired=false;}
+function hasUnsyncedWork(){
+  return syncDirty||syncState==="error"||syncState==="expired"||anyNoteUnsynced();
+}
+
+function runSync(retryAfterRefresh){
   var client=window.APP_AUTH_CLIENT;
   if(!client){return Promise.resolve();}
   if(syncInFlight){localGen++;return syncInFlight;}
@@ -1200,10 +1378,19 @@ function runSync(){
     meta.lastSavedAt=Date.now();persistMeta();
     setSyncState("saved");
     syncInFlight=null;
+    clearSessionExpired();
     if(localGen!==startGen){scheduleSync();}
-  }).catch(function(){
+  }).catch(function(err){
     syncInFlight=null;
-    setSyncState("error");
+    if(!retryAfterRefresh&&looksLikeExpiredSession(err)&&client.auth.refreshSession){
+      client.auth.refreshSession().then(function(res){
+        if(res&&res.data&&res.data.session){runSync(true);}
+        else{markSessionExpired();scheduleRetry();}
+      }).catch(function(){markSessionExpired();scheduleRetry();});
+      return;
+    }
+    if(retryAfterRefresh&&looksLikeExpiredSession(err)){markSessionExpired();}
+    setSyncState(sessionExpired?"expired":"error");
     scheduleRetry();
   });
   return syncInFlight;
@@ -1303,19 +1490,20 @@ function anyNoteSyncInFlight(){return Object.keys(noteSyncInFlight).length>0;}
 function anyNoteUnsynced(){
   return Object.keys(notesDoc.notes).some(function(scope){
     var r=notesDoc.notes[scope];
-    return r.dirty||noteSyncState[scope]==="error"||noteSyncState[scope]==="offline";
+    return r.dirty||noteSyncState[scope]==="error"||noteSyncState[scope]==="offline"||noteSyncState[scope]==="expired";
   })||Object.keys(noteConflicts).length>0;
 }
 function combinedSyncState(){
   var states=[syncState];
   Object.keys(noteSyncState).forEach(function(k){states.push(noteSyncState[k]);});
+  if(states.indexOf("expired")>-1){return "expired";}
   if(states.indexOf("error")>-1||Object.keys(noteConflicts).length){return "error";}
   if(states.indexOf("saving")>-1){return "saving";}
   if(states.indexOf("offline")>-1){return "offline";}
   return "saved";
 }
 
-function runNoteSync(scope){
+function runNoteSync(scope,retryAfterRefresh){
   var client=window.APP_AUTH_CLIENT;
   if(!client){return Promise.resolve();}
   if(noteSyncInFlight[scope]){return noteSyncInFlight[scope];}
@@ -1346,11 +1534,19 @@ function runNoteSync(scope){
       setNoteSyncState(scope,"saved");
       scheduleNoteSync(scope);
     }
-    meta.lastSavedAt=Date.now();persistMeta();updateSyncUI();
+    meta.lastSavedAt=Date.now();persistMeta();clearSessionExpired();updateSyncUI();
     fireNotesChanged();
-  }).catch(function(){
+  }).catch(function(err){
     delete noteSyncInFlight[scope];
-    setNoteSyncState(scope,"error");
+    if(!retryAfterRefresh&&looksLikeExpiredSession(err)&&client.auth.refreshSession){
+      client.auth.refreshSession().then(function(res){
+        if(res&&res.data&&res.data.session){runNoteSync(scope,true);}
+        else{markSessionExpired();setNoteSyncState(scope,"expired");scheduleNoteRetry(scope);}
+      }).catch(function(){markSessionExpired();setNoteSyncState(scope,"expired");scheduleNoteRetry(scope);});
+      return;
+    }
+    if(retryAfterRefresh&&looksLikeExpiredSession(err)){markSessionExpired();}
+    setNoteSyncState(scope,sessionExpired?"expired":"error");
     scheduleNoteRetry(scope);
   });
   noteSyncInFlight[scope]=p;
@@ -1414,6 +1610,7 @@ function resolveConflictKeepMine(scope){
 }
 function resolveConflictUseTheirs(scope){
   var c=noteConflicts[scope];if(!c){return;}
+  takeSafetySnapshot("before resolving a notes conflict (Use theirs)");
   delete noteConflicts[scope];
   notesDoc.notes[scope]={body:c.remote.body,localUpdatedAt:c.remote.at,serverUpdatedAt:c.remote.at,dirty:false};
   persistNotes();fireNotesChanged();updateSyncUI();
@@ -1428,7 +1625,7 @@ function resolveConflictCopyMine(scope){
 
 function guardSignOut(onProceed){
   function decide(){
-    if(!syncDirty&&syncState!=="error"&&syncState!=="offline"&&!anyNoteUnsynced()){onProceed();return;}
+    if(!syncDirty&&syncState!=="error"&&syncState!=="offline"&&syncState!=="expired"&&!anyNoteUnsynced()){onProceed();return;}
     openSyncWarn(onProceed);
   }
   var pending=[];
@@ -1455,7 +1652,7 @@ function openSyncWarn(onProceed){
   cancelBtn.onclick=function(){close();};
   proceedBtn.onclick=function(){close();onProceed();};
 }
-window.APP_SYNC={guardSignOut:guardSignOut};
+window.APP_SYNC={guardSignOut:guardSignOut,hasUnsyncedWork:hasUnsyncedWork};
 
 function syncStatus(){
   var client=window.APP_AUTH_CLIENT;
@@ -1465,6 +1662,7 @@ function syncStatus(){
     return {dot:"local",text:text};
   }
   var combined=combinedSyncState();
+  if(combined==="expired"){return {dot:"error",text:"Session expired. Your changes are safe on this device. Sign in to sync."};}
   if(combined==="saving"){return {dot:"saving",text:"Saving…"};}
   if(combined==="offline"){return {dot:"offline",text:"Offline · saved on this device"};}
   if(combined==="error"){return {dot:"error",text:"Could not save to the cloud · retrying"};}
@@ -1474,10 +1672,22 @@ function syncStatus(){
   return {dot:"local",text:fallback};
 }
 
+var BACKUP_DUE_MS=7*24*60*60*1000;
+function updateBackupUI(){
+  var hint=$("#backupHint"),dot=$("#backupDueDot");
+  if(!hint||!dot){return;}
+  var due=!meta.lastBackupAt||(Date.now()-meta.lastBackupAt)>BACKUP_DUE_MS;
+  hint.textContent=meta.lastBackupAt?
+    "Last manual backup "+fmtIST(meta.lastBackupAt)+(due?" — consider downloading a fresh one.":"."):
+    "No manual backup downloaded yet.";
+  dot.hidden=!due;
+}
+
 function updateSyncUI(){
   var s=syncStatus(),dot=$("#pillDot"),saved=$("#pillSaved");
   if(dot){dot.className="ip-dot ip-dot-"+s.dot;}
   if(saved){saved.textContent=s.text;}
+  updateBackupUI();
   var panel=$("#insightsPanel");
   if(panel&&!panel.hidden){renderInsightsPanel();}
 }
@@ -1518,6 +1728,7 @@ function renderInsightsPanel(){
   $("#ipSaveStatus").textContent=s.text;
   $("#ipLastSaved").textContent=meta.lastSavedAt?("Last saved "+fmtIST(meta.lastSavedAt)):"Not yet saved to the cloud.";
   $("#ipLastChange").textContent=meta.lastChangeAt?("Last change on this device "+fmtIST(meta.lastChangeAt)):"No changes yet.";
+  $("#ipLastBackup").textContent=meta.lastBackupAt?("Last manual backup "+fmtIST(meta.lastBackupAt)):"No manual backup downloaded yet.";
   var noteCount=0,lastNoteEdit=0;
   Object.keys(notesDoc.notes).forEach(function(scope){
     var r=notesDoc.notes[scope];
@@ -1833,6 +2044,7 @@ function bindInsights(){
   var accountWrap=$("#accountWrap"),accountBtn=$("#accountBtn"),accountMenu=$("#accountMenu");
   var accountInitial=$("#accountInitial"),accountEmail=$("#accountEmail");
   var menuExport=$("#menuExport"),menuImport=$("#menuImport"),menuSignOut=$("#menuSignOut"),menuClearDevice=$("#menuClearDevice");
+  var menuChangePassword=$("#menuChangePassword");
 
   function onInsightsKey(e){
     if(e.key==="Escape"){closeInsights();return;}
@@ -1903,6 +2115,10 @@ function bindInsights(){
   });
   menuExport.addEventListener("click",function(){closeAccountMenu();$("#exportProgress").click();});
   menuImport.addEventListener("click",function(){closeAccountMenu();$("#importProgress").click();});
+  menuChangePassword.addEventListener("click",function(){
+    closeAccountMenu();
+    if(window.APP_AUTH_CHANGE_PASSWORD){window.APP_AUTH_CHANGE_PASSWORD();}
+  });
   menuSignOut.addEventListener("click",function(){
     closeAccountMenu();
     guardSignOut(function(){if(window.APP_AUTH_SIGNOUT){window.APP_AUTH_SIGNOUT();}else{$("#signOut").click();}});
@@ -1910,6 +2126,7 @@ function bindInsights(){
   menuClearDevice.addEventListener("click",function(){
     closeAccountMenu();
     guardSignOut(function(){
+      takeSafetySnapshot("before clear device");
       try{
         window.localStorage.removeItem(KEY_V2);
         window.localStorage.removeItem(KEY_V3);
